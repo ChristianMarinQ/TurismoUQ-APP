@@ -1,20 +1,27 @@
 import { Request, Response, NextFunction } from 'express';
 import oracledb from 'oracledb';
 import { getConnection } from '../config/db';
+import { fijarContextoAdmin } from '../utils/contexto';
 
 export async function estadisticas(_req: Request, res: Response): Promise<void> {
   const conn = await getConnection();
   try {
-    const [reservas, ingresos, alojamientos, clientes] = await Promise.all([
-      conn.execute<{ ESTADO: string; CANTIDAD: number }>(
-        `SELECT estado, COUNT(*) AS cantidad FROM reserva GROUP BY estado`
-      ),
-      conn.execute<{ TOTAL: number }>(
-        `SELECT NVL(SUM(valor_total), 0) AS total FROM reserva WHERE estado IN ('CONFIRMADA', 'FINALIZADA')`
-      ),
-      conn.execute<{ TOTAL: number }>(`SELECT COUNT(*) AS total FROM alojamiento WHERE estado = 'ACTIVO'`),
-      conn.execute<{ TOTAL: number }>(`SELECT COUNT(*) AS total FROM cliente`),
-    ]);
+    await fijarContextoAdmin(conn);
+
+    // Secuencial a propósito: una misma conexión de oracledb no admite
+    // varias consultas concurrentes (Promise.all aquí causaría errores
+    // intermitentes o resultados indefinidos, no una ganancia real de
+    // velocidad).
+    const reservas = await conn.execute<{ ESTADO: string; CANTIDAD: number }>(
+      `SELECT estado, COUNT(*) AS cantidad FROM reserva GROUP BY estado`
+    );
+    const ingresos = await conn.execute<{ TOTAL: number }>(
+      `SELECT NVL(SUM(valor_total), 0) AS total FROM reserva WHERE estado IN ('CONFIRMADA', 'FINALIZADA')`
+    );
+    const alojamientos = await conn.execute<{ TOTAL: number }>(
+      `SELECT COUNT(*) AS total FROM alojamiento WHERE estado = 'ACTIVO'`
+    );
+    const clientes = await conn.execute<{ TOTAL: number }>(`SELECT COUNT(*) AS total FROM cliente`);
 
     res.json({
       reservasPorEstado: reservas.rows,
@@ -30,6 +37,8 @@ export async function estadisticas(_req: Request, res: Response): Promise<void> 
 export async function listarReservasAdmin(req: Request, res: Response): Promise<void> {
   const conn = await getConnection();
   try {
+    await fijarContextoAdmin(conn);
+
     const estado = req.query.estado as string | undefined;
     const binds: Record<string, string> = {};
     let filtro = '';

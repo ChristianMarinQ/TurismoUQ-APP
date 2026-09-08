@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { Cargando, ErrorEstado } from '../../components/EstadosUI';
 
 interface Stats {
   reservasPorEstado: { ESTADO: string; CANTIDAD: number }[];
@@ -11,13 +12,18 @@ interface Stats {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(true);
 
-  useEffect(() => {
-    api.adminEstadisticas().then(setStats).catch((e) => setError(e.message));
+  const cargar = useCallback(() => {
+    setCargando(true);
+    setError(null);
+    api.adminEstadisticas().then(setStats).catch((e) => setError(e.message)).finally(() => setCargando(false));
   }, []);
 
-  if (error) return <p className="text-red-600">{error}</p>;
-  if (!stats) return <p className="text-stone-500">Cargando...</p>;
+  useEffect(() => { cargar(); }, [cargar]);
+
+  if (cargando) return <Cargando mensaje="Cargando estadísticas..." />;
+  if (error || !stats) return <ErrorEstado mensaje={error ?? 'No se pudieron cargar las estadísticas.'} onReintentar={cargar} />;
 
   const tarjetas = [
     { label: 'Ingresos (confirmados)', valor: `$${Number(stats.ingresosTotales).toLocaleString('es-CO')}` },
@@ -40,14 +46,18 @@ export default function AdminDashboard() {
 
       <div className="card p-5">
         <h2 className="mb-3 font-semibold text-stone-900">Reservas por estado</h2>
-        <div className="space-y-2">
-          {stats.reservasPorEstado.map((r) => (
-            <div key={r.ESTADO} className="flex items-center justify-between text-sm">
-              <span className="text-stone-600">{r.ESTADO}</span>
-              <span className="font-semibold text-stone-900">{r.CANTIDAD}</span>
-            </div>
-          ))}
-        </div>
+        {stats.reservasPorEstado.length === 0 ? (
+          <p className="text-sm text-stone-500">Todavía no hay reservas registradas.</p>
+        ) : (
+          <div className="space-y-2">
+            {stats.reservasPorEstado.map((r) => (
+              <div key={r.ESTADO} className="flex items-center justify-between text-sm">
+                <span className="text-stone-600">{r.ESTADO}</span>
+                <span className="font-semibold text-stone-900">{r.CANTIDAD}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

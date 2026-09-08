@@ -1,27 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, AlojamientoResumen, Municipio } from '../api/client';
 import { Navbar } from '../components/Navbar';
+import { Cargando, ErrorEstado, Vacio } from '../components/EstadosUI';
 
 export default function Home() {
   const [municipios, setMunicipios] = useState<Municipio[]>([]);
-  const [alojamientos, setAlojamientos] = useState<AlojamientoResumen[]>([]);
+  const [alojamientos, setAlojamientos] = useState<AlojamientoResumen[] | null>(null);
   const [municipioFiltro, setMunicipioFiltro] = useState<number | ''>('');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.listarMunicipios().then(setMunicipios).catch((e) => setError(e.message));
+    api.listarMunicipios().then(setMunicipios).catch(() => {});
   }, []);
 
-  useEffect(() => {
+  const cargar = useCallback(() => {
     setCargando(true);
+    setError(null);
     api
       .listarAlojamientos(municipioFiltro ? { municipio: municipioFiltro } : undefined)
       .then(setAlojamientos)
       .catch((e) => setError(e.message))
       .finally(() => setCargando(false));
   }, [municipioFiltro]);
+
+  useEffect(() => { cargar(); }, [cargar]);
 
   return (
     <div>
@@ -51,37 +55,42 @@ export default function Home() {
       </section>
 
       <main className="mx-auto max-w-6xl px-4 py-10">
-        {error && <p className="text-red-600">{error}</p>}
+        {cargando && <Cargando mensaje="Buscando alojamientos..." />}
 
-        <h2 className="mb-4 text-lg font-semibold text-stone-900">
-          {cargando ? 'Buscando alojamientos...' : `${alojamientos.length} alojamientos disponibles`}
-        </h2>
+        {!cargando && error && (
+          <ErrorEstado mensaje={`No se pudieron cargar los alojamientos: ${error}`} onReintentar={cargar} />
+        )}
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {alojamientos.map((a) => (
-            <Link
-              key={a.ID_ALOJAMIENTO}
-              to={`/alojamientos/${a.ID_ALOJAMIENTO}`}
-              className="card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className="flex h-36 items-center justify-center bg-gradient-to-br from-brand-100 to-brand-200 text-4xl">
-                {ICONO_TIPO[a.TIPO_ALOJAMIENTO] ?? '🏠'}
-              </div>
-              <div className="p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-brand-600">{a.TIPO_ALOJAMIENTO}</p>
-                <h3 className="mt-1 font-semibold text-stone-900 group-hover:text-brand-700">{a.NOMBRE}</h3>
-                <p className="mt-1 text-sm text-stone-500">{a.MUNICIPIO}</p>
-                <div className="mt-3 flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-1 text-amber-600">⭐ {Number(a.CALIFICACION_PROMEDIO).toFixed(1)}</span>
-                  <span className="text-stone-500">hasta {a.CAPACIDAD_MAX} huéspedes</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        {!cargando && !error && alojamientos && alojamientos.length === 0 && (
+          <Vacio icono="🏕️" titulo="No hay alojamientos para ese filtro" descripcion="Prueba con otro municipio." />
+        )}
 
-        {!cargando && alojamientos.length === 0 && (
-          <p className="py-12 text-center text-stone-500">No hay alojamientos para ese filtro.</p>
+        {!cargando && !error && alojamientos && alojamientos.length > 0 && (
+          <>
+            <h2 className="mb-4 text-lg font-semibold text-stone-900">{alojamientos.length} alojamientos disponibles</h2>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {alojamientos.map((a) => (
+                <Link
+                  key={a.ID_ALOJAMIENTO}
+                  to={`/alojamientos/${a.ID_ALOJAMIENTO}`}
+                  className="card group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="flex h-36 items-center justify-center bg-gradient-to-br from-brand-100 to-brand-200 text-4xl">
+                    {ICONO_TIPO[a.TIPO_ALOJAMIENTO] ?? '🏠'}
+                  </div>
+                  <div className="p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-brand-600">{a.TIPO_ALOJAMIENTO}</p>
+                    <h3 className="mt-1 font-semibold text-stone-900 group-hover:text-brand-700">{a.NOMBRE}</h3>
+                    <p className="mt-1 text-sm text-stone-500">{a.MUNICIPIO}</p>
+                    <div className="mt-3 flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-1 text-amber-600">⭐ {Number(a.CALIFICACION_PROMEDIO).toFixed(1)}</span>
+                      <span className="text-stone-500">hasta {a.CAPACIDAD_MAX} huéspedes</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </>
         )}
       </main>
     </div>

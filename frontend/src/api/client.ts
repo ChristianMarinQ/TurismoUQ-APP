@@ -64,7 +64,7 @@ export const api = {
   // --- Auth ---
   registrarCliente: (payload: {
     nombre: string; apellido: string; tipoDocumento: string; numeroDocumento: string;
-    email: string; telefono?: string; password: string;
+    email: string; telefono?: string; password: string; sitio?: string;
   }) => pedir<Sesion>('/auth/registro', { method: 'POST', body: JSON.stringify(payload) }),
   loginCliente: (email: string, password: string) =>
     pedir<Sesion>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),

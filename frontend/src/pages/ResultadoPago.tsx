@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Navbar } from '../components/Navbar';
+import { Cargando, ErrorEstado } from '../components/EstadosUI';
 
 /**
  * Wompi redirige aquí después del checkout. El webhook (servidor a
@@ -41,8 +42,8 @@ export default function ResultadoPago() {
       <main className="mx-auto max-w-md px-4 py-16 text-center">
         <h1 className="mb-4 text-2xl font-bold text-stone-900">Resultado del pago</h1>
 
-        {error && <p className="text-red-600">{error}</p>}
-        {!error && estado === null && <p className="text-stone-500">Consultando el estado de tu reserva #{idReserva}...</p>}
+        {error && <ErrorEstado mensaje={error} />}
+        {!error && estado === null && <Cargando mensaje={`Consultando el estado de tu reserva #${idReserva}...`} />}
         {estado === 'CONFIRMADA' && (
           <div className="rounded-xl bg-emerald-50 p-6">
             <p className="text-3xl">✅</p>

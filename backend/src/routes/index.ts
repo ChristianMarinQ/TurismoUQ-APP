@@ -4,39 +4,49 @@ import { consultarDisponibilidad, crearReserva, obtenerReserva, misReservas } fr
 import { iniciarPago, webhookWompi } from '../controllers/pagos.controller';
 import { registrarCliente, loginCliente, loginAdmin, logout, quienSoy } from '../controllers/auth.controller';
 import { requireCliente, requireAdmin } from '../middleware/auth';
+import { validarBody } from '../middleware/validate';
+import { limiteAuth } from '../middleware/rateLimit';
+import { asyncHandler } from '../utils/asyncHandler';
+import { registroSchema, loginClienteSchema, loginAdminSchema } from '../schemas/auth.schema';
+import { crearReservaSchema } from '../schemas/reservas.schema';
+import {
+  crearAlojamientoSchema, actualizarAlojamientoSchema, crearHabitacionSchema, actualizarHabitacionSchema,
+} from '../schemas/admin.schema';
 import * as admin from '../controllers/admin.controller';
 
 export const router = Router();
 
-// --- Autenticación ---
-router.post('/auth/registro', registrarCliente);
-router.post('/auth/login', loginCliente);
-router.post('/auth/admin/login', loginAdmin);
+// --- Autenticación (con límite de intentos para frenar fuerza bruta/spam) ---
+router.post('/auth/registro', limiteAuth, validarBody(registroSchema), asyncHandler(registrarCliente));
+router.post('/auth/login', limiteAuth, validarBody(loginClienteSchema), asyncHandler(loginCliente));
+router.post('/auth/admin/login', limiteAuth, validarBody(loginAdminSchema), asyncHandler(loginAdmin));
 router.post('/auth/logout', logout);
 router.get('/auth/yo', quienSoy);
 
-// --- Catálogo público ---
-router.get('/municipios', listarMunicipios);
-router.get('/tipos-alojamiento', listarTiposAlojamiento);
-router.get('/alojamientos', listarAlojamientos);
-router.get('/alojamientos/:id', obtenerAlojamiento);
-router.get('/disponibilidad', consultarDisponibilidad);
+// --- Catálogo público (de solo lectura, sin datos sensibles) ---
+router.get('/municipios', asyncHandler(listarMunicipios));
+router.get('/tipos-alojamiento', asyncHandler(listarTiposAlojamiento));
+router.get('/alojamientos', asyncHandler(listarAlojamientos));
+router.get('/alojamientos/:id', asyncHandler(obtenerAlojamiento));
+router.get('/disponibilidad', asyncHandler(consultarDisponibilidad));
 
-// --- Reservas (requieren sesión de cliente) ---
-router.post('/reservas', requireCliente, crearReserva);
-router.get('/reservas/mias', requireCliente, misReservas);
-router.get('/reservas/:id', obtenerReserva);
-router.post('/reservas/:id/pago', requireCliente, iniciarPago);
+// --- Reservas ---
+// crearReserva e iniciarPago exigen sesión de cliente; obtenerReserva exige
+// sesión (cliente dueño o admin) y lo valida dentro del propio controlador.
+router.post('/reservas', requireCliente, validarBody(crearReservaSchema), asyncHandler(crearReserva));
+router.get('/reservas/mias', requireCliente, asyncHandler(misReservas));
+router.get('/reservas/:id', asyncHandler(obtenerReserva));
+router.post('/reservas/:id/pago', requireCliente, asyncHandler(iniciarPago));
 
-// --- Pagos ---
-router.post('/pagos/wompi/webhook', webhookWompi);
+// --- Pagos (Wompi llama esta ruta servidor-a-servidor, autenticada por firma) ---
+router.post('/pagos/wompi/webhook', asyncHandler(webhookWompi));
 
 // --- Panel de administración (requiere sesión de admin) ---
-router.get('/admin/estadisticas', requireAdmin, admin.estadisticas);
-router.get('/admin/reservas', requireAdmin, admin.listarReservasAdmin);
-router.get('/admin/alojamientos', requireAdmin, admin.listarAlojamientosAdmin);
-router.post('/admin/alojamientos', requireAdmin, admin.crearAlojamiento);
-router.put('/admin/alojamientos/:id', requireAdmin, admin.actualizarAlojamiento);
-router.get('/admin/alojamientos/:idAlojamiento/habitaciones', requireAdmin, admin.listarHabitacionesAdmin);
-router.post('/admin/alojamientos/:idAlojamiento/habitaciones', requireAdmin, admin.crearHabitacion);
-router.put('/admin/habitaciones/:id', requireAdmin, admin.actualizarHabitacion);
+router.get('/admin/estadisticas', requireAdmin, asyncHandler(admin.estadisticas));
+router.get('/admin/reservas', requireAdmin, asyncHandler(admin.listarReservasAdmin));
+router.get('/admin/alojamientos', requireAdmin, asyncHandler(admin.listarAlojamientosAdmin));
+router.post('/admin/alojamientos', requireAdmin, validarBody(crearAlojamientoSchema), asyncHandler(admin.crearAlojamiento));
+router.put('/admin/alojamientos/:id', requireAdmin, validarBody(actualizarAlojamientoSchema), asyncHandler(admin.actualizarAlojamiento));
+router.get('/admin/alojamientos/:idAlojamiento/habitaciones', requireAdmin, asyncHandler(admin.listarHabitacionesAdmin));
+router.post('/admin/alojamientos/:idAlojamiento/habitaciones', requireAdmin, validarBody(crearHabitacionSchema), asyncHandler(admin.crearHabitacion));
+router.put('/admin/habitaciones/:id', requireAdmin, validarBody(actualizarHabitacionSchema), asyncHandler(admin.actualizarHabitacion));

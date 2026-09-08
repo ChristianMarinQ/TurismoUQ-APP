@@ -6,18 +6,21 @@ import { firmarToken, NOMBRE_COOKIE, OPCIONES_COOKIE } from '../utils/jwt';
 
 const RONDAS_BCRYPT = 12;
 
+// Hash "señuelo" precalculado, para comparar contra él cuando el usuario
+// no existe. Sin esto, bcrypt.compare() solo se ejecuta si el usuario SÍ
+// existe, y esa diferencia de tiempo (bcrypt tarda ~50-100ms, un SELECT
+// vacío es casi instantáneo) permite a un atacante averiguar qué emails
+// están registrados con solo medir cuánto tarda la respuesta.
+const HASH_SENUELO = bcrypt.hashSync('valor-fijo-solo-para-igualar-tiempos', RONDAS_BCRYPT);
+
 export async function registrarCliente(req: Request, res: Response, next: NextFunction): Promise<void> {
   const conn = await getConnection();
   try {
+    // req.body ya fue validado y saneado por el middleware validarBody(registroSchema).
     const { nombre, apellido, tipoDocumento, numeroDocumento, email, telefono, password } = req.body as {
       nombre: string; apellido: string; tipoDocumento: string; numeroDocumento: string;
       email: string; telefono?: string; password: string;
     };
-
-    if (!password || password.length < 8) {
-      res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres.' });
-      return;
-    }
 
     const existente = await conn.execute<{ ID_CLIENTE: number }>(
       `SELECT id_cliente FROM cliente WHERE email = :email OR (tipo_documento = :td AND numero_documento = :nd)`,
@@ -73,7 +76,9 @@ export async function loginCliente(req: Request, res: Response, next: NextFuncti
     );
 
     const fila = resultado.rows?.[0];
-    const credencialesValidas = fila ? await bcrypt.compare(password, fila.PASSWORD_HASH) : false;
+    // Siempre se llama a bcrypt.compare, exista o no la fila, para que el
+    // tiempo de respuesta sea el mismo en ambos casos.
+    const credencialesValidas = await bcrypt.compare(password, fila?.PASSWORD_HASH ?? HASH_SENUELO);
 
     if (!fila || !credencialesValidas) {
       // Mismo mensaje para "no existe" y "clave incorrecta": no revelar cuál de las dos falló.
@@ -103,7 +108,7 @@ export async function loginAdmin(req: Request, res: Response, next: NextFunction
     );
 
     const fila = resultado.rows?.[0];
-    const credencialesValidas = fila ? await bcrypt.compare(password, fila.PASSWORD_HASH) : false;
+    const credencialesValidas = await bcrypt.compare(password, fila?.PASSWORD_HASH ?? HASH_SENUELO);
 
     if (!fila || !credencialesValidas) {
       res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });

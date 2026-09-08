@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, ReservaResumen } from '../api/client';
+import { Cargando, ErrorEstado, Vacio } from '../components/EstadosUI';
 
 const COLOR_ESTADO: Record<string, string> = {
   PENDIENTE: 'bg-amber-100 text-amber-800',
@@ -9,38 +10,46 @@ const COLOR_ESTADO: Record<string, string> = {
 };
 
 export default function MisReservas() {
-  const [reservas, setReservas] = useState<ReservaResumen[]>([]);
+  const [reservas, setReservas] = useState<ReservaResumen[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
 
-  useEffect(() => {
+  const cargar = useCallback(() => {
+    setCargando(true);
+    setError(null);
     api.misReservas().then(setReservas).catch((e) => setError(e.message)).finally(() => setCargando(false));
   }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
       <h1 className="mb-6 text-2xl font-bold text-stone-900">Mis reservas</h1>
 
-      {error && <p className="text-red-600">{error}</p>}
-      {cargando && <p className="text-stone-500">Cargando...</p>}
-      {!cargando && reservas.length === 0 && <p className="text-stone-500">Todavía no tienes reservas.</p>}
+      {cargando && <Cargando mensaje="Cargando tus reservas..." />}
+      {!cargando && error && <ErrorEstado mensaje={error} onReintentar={cargar} />}
+      {!cargando && !error && reservas && reservas.length === 0 && (
+        <Vacio icono="🧳" titulo="Todavía no tienes reservas" descripcion="Cuando reserves un alojamiento, aparecerá aquí." />
+      )}
 
-      <div className="space-y-3">
-        {reservas.map((r) => (
-          <div key={r.ID_RESERVA} className="card flex flex-col justify-between gap-3 p-5 sm:flex-row sm:items-center">
-            <div>
-              <p className="font-semibold text-stone-900">{r.ALOJAMIENTO} — {r.MUNICIPIO}</p>
-              <p className="text-sm text-stone-500">
-                Habitación {r.HABITACION} ({r.TIPO_HABITACION}) · {new Date(r.FECHA_CHECKIN).toLocaleDateString('es-CO')} → {new Date(r.FECHA_CHECKOUT).toLocaleDateString('es-CO')}
-              </p>
+      {!cargando && !error && reservas && reservas.length > 0 && (
+        <div className="space-y-3">
+          {reservas.map((r) => (
+            <div key={r.ID_RESERVA} className="card flex flex-col justify-between gap-3 p-5 sm:flex-row sm:items-center">
+              <div>
+                <p className="font-semibold text-stone-900">{r.ALOJAMIENTO} — {r.MUNICIPIO}</p>
+                <p className="text-sm text-stone-500">
+                  Habitación {r.HABITACION} ({r.TIPO_HABITACION}) · {new Date(r.FECHA_CHECKIN).toLocaleDateString('es-CO')} → {new Date(r.FECHA_CHECKOUT).toLocaleDateString('es-CO')}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`badge ${COLOR_ESTADO[r.ESTADO] ?? 'bg-stone-100 text-stone-700'}`}>{r.ESTADO}</span>
+                <span className="font-semibold text-stone-900">${Number(r.VALOR_TOTAL).toLocaleString('es-CO')}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className={`badge ${COLOR_ESTADO[r.ESTADO] ?? 'bg-stone-100 text-stone-700'}`}>{r.ESTADO}</span>
-              <span className="font-semibold text-stone-900">${Number(r.VALOR_TOTAL).toLocaleString('es-CO')}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </main>
   );
 }

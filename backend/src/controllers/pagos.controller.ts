@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { getConnection } from '../config/db';
+import { fijarContextoCliente, fijarContextoAdmin } from '../utils/contexto';
 import {
   construirUrlCheckout,
   verificarFirmaWebhook,
@@ -11,10 +12,16 @@ export async function iniciarPago(req: Request, res: Response, next: NextFunctio
   const conn = await getConnection();
   try {
     const idReserva = Number(req.params.id);
+    const idCliente = req.usuario!.id; // requireCliente ya garantiza que existe
+    await fijarContextoCliente(conn, idCliente);
 
+    // Filtrar por id_cliente también en el WHERE (no solo exigir sesión ni
+    // confiar solo en el RLS): sin esto, cualquier cliente autenticado
+    // podría generar un link de pago para la reserva de OTRO cliente con
+    // solo cambiar el id en la URL.
     const reserva = await conn.execute<{ VALOR_TOTAL: number; ESTADO: string }>(
-      `SELECT valor_total, estado FROM reserva WHERE id_reserva = :id`,
-      { id: idReserva }
+      `SELECT valor_total, estado FROM reserva WHERE id_reserva = :id AND id_cliente = :idCliente`,
+      { id: idReserva, idCliente }
     );
 
     if (!reserva.rows || reserva.rows.length === 0) {
@@ -66,13 +73,46 @@ export async function webhookWompi(req: Request, res: Response): Promise<void> {
 
   const conn = await getConnection();
   try {
+    // El webhook no actúa "como" ningún cliente concreto -- ya se verificó
+    // la firma de Wompi arriba, que es la prueba de confianza aquí -- así
+    // que necesita ver/actualizar la reserva que sea, identificada por lo
+    // que venga en el payload firmado.
+    await fijarContextoAdmin(conn);
+
+    // Idempotencia: Wompi reintenta el webhook si no le respondemos a
+    // tiempo, así que el mismo transaction.id puede llegar más de una vez.
+    // Si ya lo procesamos, no volvemos a insertar el pago.
+    const yaProcesado = await conn.execute<{ CANTIDAD: number }>(
+      `SELECT COUNT(*) AS cantidad FROM pago WHERE referencia_pasarela = :referencia`,
+      { referencia: transaction.id }
+    );
+    if ((yaProcesado.rows?.[0]?.CANTIDAD ?? 0) > 0) {
+      res.status(200).json({ recibido: true, duplicado: true });
+      return;
+    }
+
     if (transaction.status === 'APPROVED') {
+      // El monto se valida contra lo que la reserva realmente debe, en vez
+      // de confiar ciegamente en el que venga en el payload del webhook.
+      const reserva = await conn.execute<{ VALOR_TOTAL: number }>(
+        `SELECT valor_total FROM reserva WHERE id_reserva = :id`,
+        { id: idReserva }
+      );
+      const valorEsperado = reserva.rows?.[0]?.VALOR_TOTAL;
+      const montoRecibido = transaction.amount_in_cents / 100;
+
+      if (valorEsperado === undefined || Math.round(valorEsperado) !== Math.round(montoRecibido)) {
+        console.error(`Webhook Wompi: monto no coincide para reserva ${idReserva} (esperado=${valorEsperado}, recibido=${montoRecibido})`);
+        res.status(409).json({ error: 'El monto no coincide con el valor de la reserva.' });
+        return;
+      }
+
       await conn.execute(
         `INSERT INTO pago (id_reserva, monto, metodo_pago, estado, referencia_pasarela)
          VALUES (:idReserva, :monto, 'WOMPI', 'APROBADO', :referencia)`,
         {
           idReserva,
-          monto: transaction.amount_in_cents / 100,
+          monto: montoRecibido,
           referencia: transaction.id,
         }
       );

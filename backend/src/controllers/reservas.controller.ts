@@ -1,13 +1,28 @@
 import { Request, Response, NextFunction } from 'express';
 import oracledb from 'oracledb';
 import { getConnection } from '../config/db';
+import { fijarContextoCliente, fijarContextoAdmin } from '../utils/contexto';
+
+const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function consultarDisponibilidad(req: Request, res: Response): Promise<void> {
+  const idHabitacion = Number(req.query.idHabitacion);
+  const checkin = String(req.query.checkin ?? '');
+  const checkout = String(req.query.checkout ?? '');
+
+  if (!Number.isInteger(idHabitacion) || idHabitacion <= 0 || !FECHA_ISO.test(checkin) || !FECHA_ISO.test(checkout)) {
+    res.status(400).json({ error: 'Parámetros inválidos.' });
+    return;
+  }
+
   const conn = await getConnection();
   try {
-    const idHabitacion = Number(req.query.idHabitacion);
-    const checkin = String(req.query.checkin);
-    const checkout = String(req.query.checkout);
+    // Este chequeo necesita ver las reservas de TODOS los clientes (para
+    // saber si alguien más ya tiene esa habitación en esas fechas), no
+    // solo las del cliente que consulta -- por eso usa el contexto
+    // "admin" del RLS. No expone datos de otros clientes: la respuesta es
+    // solo un true/false y un precio, nunca filas de RESERVA.
+    await fijarContextoAdmin(conn);
 
     const conflicto = await conn.execute<{ CANTIDAD: number }>(
       `SELECT COUNT(*) AS cantidad
@@ -51,6 +66,11 @@ export async function crearReserva(req: Request, res: Response, next: NextFuncti
     // id_cliente que mande el cliente en el body (evitaría que alguien
     // reserve "a nombre de" otro cliente con solo cambiar un número).
     const idCliente = req.usuario!.id;
+
+    // El UPDATE de más abajo (bajar la reserva a PENDIENTE) corre bajo el
+    // RLS de RESERVA -- se fija el contexto a ESTE cliente antes, para que
+    // esa fila (que le pertenece) sea visible/actualizable.
+    await fijarContextoCliente(conn, idCliente);
 
     const TyItemHabitacion = await conn.getDbObjectClass('TY_ITEM_HABITACION');
     const TyTabHabitaciones = await conn.getDbObjectClass('TY_TAB_HABITACIONES');
@@ -101,6 +121,23 @@ export async function obtenerReserva(req: Request, res: Response): Promise<void>
   const conn = await getConnection();
   try {
     const id = Number(req.params.id);
+
+    // Solo el cliente dueño de la reserva o un admin pueden verla. Sin este
+    // filtro, cualquiera con sesión (o sin ella, si la ruta no exigiera
+    // login) podría leer los datos de CUALQUIER reserva probando ids.
+    // El filtro WHERE de abajo y el RLS de RESERVA aplican la misma regla
+    // por dos caminos distintos (defensa en profundidad).
+    const esAdmin = req.usuario?.tipo === 'admin';
+    const idClienteSesion = req.usuario?.tipo === 'cliente' ? req.usuario.id : null;
+
+    if (!esAdmin && idClienteSesion === null) {
+      res.status(401).json({ error: 'Debes iniciar sesión.' });
+      return;
+    }
+
+    if (esAdmin) await fijarContextoAdmin(conn);
+    else await fijarContextoCliente(conn, idClienteSesion!);
+
     const result = await conn.execute(
       `SELECT r.id_reserva, r.estado, r.fecha_checkin, r.fecha_checkout, r.valor_total,
               c.nombre, c.apellido, a.nombre AS alojamiento, h.numero AS habitacion
@@ -109,11 +146,14 @@ export async function obtenerReserva(req: Request, res: Response): Promise<void>
        JOIN reserva_habitacion rh ON rh.id_reserva = r.id_reserva
        JOIN habitacion h ON h.id_habitacion = rh.id_habitacion
        JOIN alojamiento a ON a.id_alojamiento = h.id_alojamiento
-       WHERE r.id_reserva = :id`,
-      { id }
+       WHERE r.id_reserva = :id
+         AND (:esAdmin = 1 OR r.id_cliente = :idCliente)`,
+      { id, esAdmin: esAdmin ? 1 : 0, idCliente: idClienteSesion ?? -1 }
     );
 
     if (!result.rows || result.rows.length === 0) {
+      // Mismo 404 tanto si la reserva no existe como si existe pero no es
+      // tuya: no revelar cuál de las dos cosas pasó.
       res.status(404).json({ error: 'Reserva no encontrada.' });
       return;
     }
@@ -128,6 +168,8 @@ export async function misReservas(req: Request, res: Response): Promise<void> {
   const conn = await getConnection();
   try {
     const idCliente = req.usuario!.id;
+    await fijarContextoCliente(conn, idCliente);
+
     const result = await conn.execute(
       `SELECT r.id_reserva, r.estado, r.fecha_checkin, r.fecha_checkout, r.valor_total,
               a.nombre AS alojamiento, m.nombre AS municipio, h.numero AS habitacion, h.tipo_habitacion

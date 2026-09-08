@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, AlojamientoDetalle, Habitacion } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
+import { Cargando, ErrorEstado } from '../components/EstadosUI';
 
 const ICONO_TIPO: Record<string, string> = {
   'Finca Cafetera': '☕', Hotel: '🏨', Glamping: '⛺', Hostal: '🛏️',
@@ -14,6 +15,8 @@ export default function Alojamiento() {
   const navigate = useNavigate();
 
   const [alojamiento, setAlojamiento] = useState<AlojamientoDetalle | null>(null);
+  const [cargandoAlojamiento, setCargandoAlojamiento] = useState(true);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [habitacionSel, setHabitacionSel] = useState<Habitacion | null>(null);
@@ -24,10 +27,17 @@ export default function Alojamiento() {
   const [numHuespedes, setNumHuespedes] = useState(1);
   const [procesando, setProcesando] = useState(false);
 
-  useEffect(() => {
+  const cargarAlojamiento = useCallback(() => {
     if (!id) return;
-    api.obtenerAlojamiento(Number(id)).then(setAlojamiento).catch((e) => setError(e.message));
+    setCargandoAlojamiento(true);
+    setErrorCarga(null);
+    api.obtenerAlojamiento(Number(id))
+      .then(setAlojamiento)
+      .catch((e) => setErrorCarga(e.message))
+      .finally(() => setCargandoAlojamiento(false));
   }, [id]);
+
+  useEffect(() => { cargarAlojamiento(); }, [cargarAlojamiento]);
 
   async function verificarDisponibilidad() {
     if (!habitacionSel || !checkin || !checkout) return;
@@ -66,8 +76,25 @@ export default function Alojamiento() {
     }
   }
 
-  if (error && !alojamiento) return <main className="p-8 text-red-600">{error}</main>;
-  if (!alojamiento) return <main className="p-8 text-stone-500">Cargando...</main>;
+  if (cargandoAlojamiento) {
+    return (
+      <div>
+        <Navbar />
+        <Cargando mensaje="Cargando alojamiento..." />
+      </div>
+    );
+  }
+
+  if (errorCarga || !alojamiento) {
+    return (
+      <div>
+        <Navbar />
+        <main className="mx-auto max-w-2xl px-4 py-10">
+          <ErrorEstado mensaje={errorCarga ?? 'No se encontró el alojamiento.'} onReintentar={cargarAlojamiento} />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div>

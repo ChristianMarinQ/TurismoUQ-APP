@@ -1,6 +1,7 @@
-import { useEffect, useState, FormEvent } from 'react';
+import { useCallback, useEffect, useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api, Municipio } from '../../api/client';
+import { Cargando, ErrorEstado, Vacio } from '../../components/EstadosUI';
 
 interface FilaAlojamiento {
   ID_ALOJAMIENTO: number;
@@ -13,23 +14,29 @@ interface FilaAlojamiento {
 }
 
 export default function AdminAlojamientos() {
-  const [alojamientos, setAlojamientos] = useState<FilaAlojamiento[]>([]);
+  const [alojamientos, setAlojamientos] = useState<FilaAlojamiento[] | null>(null);
   const [municipios, setMunicipios] = useState<Municipio[]>([]);
   const [tipos, setTipos] = useState<{ ID_TIPO: number; NOMBRE: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
 
   const [nuevo, setNuevo] = useState({ nombre: '', direccion: '', capacidadMax: 4, idMunicipio: 0, idTipo: 0 });
 
-  function cargar() {
-    api.adminListarAlojamientos().then((r) => setAlojamientos(r as unknown as FilaAlojamiento[])).catch((e) => setError(e.message));
-  }
+  const cargar = useCallback(() => {
+    setCargando(true);
+    setError(null);
+    api.adminListarAlojamientos()
+      .then((r) => setAlojamientos(r as unknown as FilaAlojamiento[]))
+      .catch((e) => setError(e.message))
+      .finally(() => setCargando(false));
+  }, []);
 
   useEffect(() => {
     cargar();
-    api.listarMunicipios().then(setMunicipios);
-    api.listarTiposAlojamiento().then(setTipos);
-  }, []);
+    api.listarMunicipios().then(setMunicipios).catch(() => {});
+    api.listarTiposAlojamiento().then(setTipos).catch(() => {});
+  }, [cargar]);
 
   async function crear(e: FormEvent) {
     e.preventDefault();
@@ -46,10 +53,14 @@ export default function AdminAlojamientos() {
 
   async function cambiarEstado(a: FilaAlojamiento) {
     const nuevoEstado = a.ESTADO === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
-    await api.adminActualizarAlojamiento(a.ID_ALOJAMIENTO, {
-      nombre: a.NOMBRE, direccion: a.DIRECCION, capacidadMax: a.CAPACIDAD_MAX, estado: nuevoEstado,
-    });
-    cargar();
+    try {
+      await api.adminActualizarAlojamiento(a.ID_ALOJAMIENTO, {
+        nombre: a.NOMBRE, direccion: a.DIRECCION, capacidadMax: a.CAPACIDAD_MAX, estado: nuevoEstado,
+      });
+      cargar();
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   return (
@@ -61,7 +72,7 @@ export default function AdminAlojamientos() {
         </button>
       </div>
 
-      {error && <p className="mb-4 text-red-600">{error}</p>}
+      {error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {mostrarForm && (
         <form onSubmit={crear} className="card mb-6 grid grid-cols-2 gap-3 p-5">
@@ -85,43 +96,51 @@ export default function AdminAlojamientos() {
         </form>
       )}
 
-      <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b border-stone-200 bg-stone-50 text-left text-stone-500">
-            <tr>
-              <th className="px-4 py-2">Nombre</th>
-              <th className="px-4 py-2">Municipio</th>
-              <th className="px-4 py-2">Tipo</th>
-              <th className="px-4 py-2">Capacidad</th>
-              <th className="px-4 py-2">Estado</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {alojamientos.map((a) => (
-              <tr key={a.ID_ALOJAMIENTO} className="border-b border-stone-100">
-                <td className="px-4 py-2 font-medium">{a.NOMBRE}</td>
-                <td className="px-4 py-2">{a.MUNICIPIO}</td>
-                <td className="px-4 py-2">{a.TIPO_ALOJAMIENTO}</td>
-                <td className="px-4 py-2">{a.CAPACIDAD_MAX}</td>
-                <td className="px-4 py-2">
-                  <button
-                    onClick={() => cambiarEstado(a)}
-                    className={`badge ${a.ESTADO === 'ACTIVO' ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'}`}
-                  >
-                    {a.ESTADO}
-                  </button>
-                </td>
-                <td className="px-4 py-2 text-right">
-                  <Link to={`/admin/alojamientos/${a.ID_ALOJAMIENTO}/habitaciones`} className="text-brand-700 hover:underline">
-                    Habitaciones →
-                  </Link>
-                </td>
+      {cargando && <Cargando mensaje="Cargando alojamientos..." />}
+      {!cargando && !alojamientos && <ErrorEstado mensaje="No se pudieron cargar los alojamientos." onReintentar={cargar} />}
+      {!cargando && alojamientos && alojamientos.length === 0 && (
+        <Vacio icono="🏨" titulo="Todavía no hay alojamientos" descripcion="Crea el primero con el botón de arriba." />
+      )}
+
+      {!cargando && alojamientos && alojamientos.length > 0 && (
+        <div className="card overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-stone-200 bg-stone-50 text-left text-stone-500">
+              <tr>
+                <th className="px-4 py-2">Nombre</th>
+                <th className="px-4 py-2">Municipio</th>
+                <th className="px-4 py-2">Tipo</th>
+                <th className="px-4 py-2">Capacidad</th>
+                <th className="px-4 py-2">Estado</th>
+                <th className="px-4 py-2"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {alojamientos.map((a) => (
+                <tr key={a.ID_ALOJAMIENTO} className="border-b border-stone-100">
+                  <td className="px-4 py-2 font-medium">{a.NOMBRE}</td>
+                  <td className="px-4 py-2">{a.MUNICIPIO}</td>
+                  <td className="px-4 py-2">{a.TIPO_ALOJAMIENTO}</td>
+                  <td className="px-4 py-2">{a.CAPACIDAD_MAX}</td>
+                  <td className="px-4 py-2">
+                    <button
+                      onClick={() => cambiarEstado(a)}
+                      className={`badge ${a.ESTADO === 'ACTIVO' ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'}`}
+                    >
+                      {a.ESTADO}
+                    </button>
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <Link to={`/admin/alojamientos/${a.ID_ALOJAMIENTO}/habitaciones`} className="text-brand-700 hover:underline">
+                      Habitaciones →
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

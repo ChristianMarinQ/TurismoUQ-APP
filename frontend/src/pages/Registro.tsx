@@ -6,7 +6,7 @@ export default function Registro() {
   const { registrarCliente } = useAuth();
   const navigate = useNavigate();
   const [datos, setDatos] = useState({
-    nombre: '', apellido: '', tipoDocumento: 'CC', numeroDocumento: '', email: '', telefono: '', password: '',
+    nombre: '', apellido: '', tipoDocumento: 'CC', numeroDocumento: '', email: '', telefono: '', password: '', sitio: '',
   });
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -57,6 +57,20 @@ export default function Registro() {
         <div>
           <input type="password" placeholder="Contraseña (mínimo 8 caracteres)" required minLength={8} className="input-field" value={datos.password} onChange={(e) => set('password', e.target.value)} />
         </div>
+
+        {/* Honeypot anti-bot: invisible para personas, pero un bot que
+            autocompleta el formulario normalmente también lo llena. Si
+            llega con contenido, el backend rechaza la petición. */}
+        <input
+          type="text"
+          name="sitio_web"
+          value={datos.sitio}
+          onChange={(e) => set('sitio', e.target.value)}
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          className="absolute -left-[9999px] h-0 w-0 opacity-0"
+        />
 
         <button type="submit" className="btn-primary w-full" disabled={cargando}>
           {cargando ? 'Creando cuenta...' : 'Crear cuenta'}

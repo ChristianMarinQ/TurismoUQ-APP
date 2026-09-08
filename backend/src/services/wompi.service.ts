@@ -64,15 +64,35 @@ function valorPorPath(obj: unknown, path: string): unknown {
   }, obj);
 }
 
+// Campos que Wompi realmente firma en un evento de transacción (según su
+// documentación). Se usa esta lista FIJA en vez de `evento.signature.properties`
+// (que viene del propio payload, no confiable) para que el checksum se
+// calcule exactamente sobre los campos de los que este código depende
+// (status, monto, referencia) — nunca sobre lo que el request declare.
+const PROPIEDADES_FIRMADAS_ESPERADAS = ['transaction.id', 'transaction.status', 'transaction.amount_in_cents'];
+
 /** Verifica la firma del evento de webhook de Wompi antes de confiar en él. */
 export function verificarFirmaWebhook(evento: EventoWompi): boolean {
+  if (!evento?.signature?.checksum || !Array.isArray(evento.signature.properties)) return false;
+
+  // Si algún día Wompi cambia el orden/conjunto de campos firmados, esto
+  // falla de forma segura (rechaza el evento) en vez de aceptar
+  // silenciosamente una lista distinta a la esperada.
+  const mismasPropiedades =
+    evento.signature.properties.length === PROPIEDADES_FIRMADAS_ESPERADAS.length &&
+    evento.signature.properties.every((p, i) => p === PROPIEDADES_FIRMADAS_ESPERADAS[i]);
+  if (!mismasPropiedades) return false;
+
   const eventsSecret = process.env.WOMPI_EVENTS_SECRET!;
-  const concatenado = evento.signature.properties
-    .map((prop) => String(valorPorPath(evento, prop) ?? ''))
-    .join('');
+  const concatenado = PROPIEDADES_FIRMADAS_ESPERADAS.map((prop) => String(valorPorPath(evento, prop) ?? '')).join('');
   const cadena = `${concatenado}${evento.timestamp}${eventsSecret}`;
   const checksumCalculado = crypto.createHash('sha256').update(cadena).digest('hex').toUpperCase();
-  return checksumCalculado === evento.signature.checksum.toUpperCase();
+
+  // Comparación en tiempo constante: evita filtrar por temporización
+  // cuántos caracteres del checksum coinciden.
+  const bufA = Buffer.from(checksumCalculado, 'utf8');
+  const bufB = Buffer.from(evento.signature.checksum.toUpperCase(), 'utf8');
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
 }
 
 export function extraerIdReservaDeReferencia(reference: string): number | null {
