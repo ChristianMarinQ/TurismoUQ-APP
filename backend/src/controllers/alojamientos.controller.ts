@@ -90,3 +90,13 @@ export async function listarMunicipios(_req: Request, res: Response): Promise<vo
     await conn.close();
   }
 }
+
+export async function listarTiposAlojamiento(_req: Request, res: Response): Promise<void> {
+  const conn = await getConnection();
+  try {
+    const result = await conn.execute('SELECT id_tipo, nombre FROM tipo_alojamiento ORDER BY nombre');
+    res.json(result.rows);
+  } finally {
+    await conn.close();
+  }
+}

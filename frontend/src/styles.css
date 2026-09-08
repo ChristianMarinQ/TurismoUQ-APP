@@ -1,28 +1,27 @@
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  background: #f7f5f2;
-  color: #2b2620;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-stone-50 text-stone-900 antialiased;
+  }
 }
-.contenedor { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { color: #6b3f1d; }
-.error { color: #b3261e; }
-.ok { color: #1e7b34; font-weight: 600; }
-.filtros { margin: 16px 0; }
-.grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin: 16px 0; }
-.tarjeta {
-  background: white; border: 1px solid #e0dbd3; border-radius: 12px; padding: 16px;
-  text-decoration: none; color: inherit; text-align: left; cursor: pointer;
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-brand-700 px-5 py-2.5 font-medium text-white shadow-sm transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg border border-stone-300 bg-white px-5 py-2.5 font-medium text-stone-700 shadow-sm transition hover:bg-stone-50;
+  }
+  .input-field {
+    @apply w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
+  }
+  .card {
+    @apply rounded-xl border border-stone-200 bg-white shadow-sm;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
 }
-.tarjeta:hover { border-color: #6b3f1d; }
-.tarjeta.seleccionada { border-color: #6b3f1d; box-shadow: 0 0 0 2px #6b3f1d33; }
-.panel { background: white; border-radius: 12px; padding: 24px; margin-top: 24px; border: 1px solid #e0dbd3; }
-.fila { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-.fila input, .fila select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; flex: 1; min-width: 140px; }
-button { cursor: pointer; }
-button.principal {
-  background: #6b3f1d; color: white; border: none; padding: 12px 20px;
-  border-radius: 8px; font-size: 1rem; margin-top: 8px;
-}
-button.principal:disabled { opacity: 0.6; cursor: not-allowed; }

@@ -2,43 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import oracledb from 'oracledb';
 import { getConnection } from '../config/db';
 
-interface DatosCliente {
-  nombre: string;
-  apellido: string;
-  tipoDocumento: string;
-  numeroDocumento: string;
-  email: string;
-  telefono?: string;
-}
-
-async function obtenerOCrearCliente(conn: oracledb.Connection, datos: DatosCliente): Promise<number> {
-  const existente = await conn.execute<{ ID_CLIENTE: number }>(
-    `SELECT id_cliente FROM cliente WHERE (tipo_documento = :td AND numero_documento = :nd) OR email = :email`,
-    { td: datos.tipoDocumento, nd: datos.numeroDocumento, email: datos.email }
-  );
-
-  if (existente.rows && existente.rows.length > 0) {
-    return existente.rows[0].ID_CLIENTE;
-  }
-
-  const insertado = await conn.execute<{ id_cliente: number[] }>(
-    `INSERT INTO cliente (tipo_documento, numero_documento, nombre, apellido, email, telefono)
-     VALUES (:td, :nd, :nombre, :apellido, :email, :telefono)
-     RETURNING id_cliente INTO :id_cliente`,
-    {
-      td: datos.tipoDocumento,
-      nd: datos.numeroDocumento,
-      nombre: datos.nombre,
-      apellido: datos.apellido,
-      email: datos.email,
-      telefono: datos.telefono ?? null,
-      id_cliente: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
-    }
-  );
-
-  return insertado.outBinds!.id_cliente[0];
-}
-
 export async function consultarDisponibilidad(req: Request, res: Response): Promise<void> {
   const conn = await getConnection();
   try {
@@ -76,15 +39,18 @@ export async function consultarDisponibilidad(req: Request, res: Response): Prom
 export async function crearReserva(req: Request, res: Response, next: NextFunction): Promise<void> {
   const conn = await getConnection();
   try {
-    const { cliente, idHabitacion, numHuespedes, checkin, checkout } = req.body as {
-      cliente: DatosCliente;
+    const { idHabitacion, numHuespedes, checkin, checkout } = req.body as {
       idHabitacion: number;
       numHuespedes: number;
       checkin: string;
       checkout: string;
     };
 
-    const idCliente = await obtenerOCrearCliente(conn, cliente);
+    // req.usuario viene del JWT (ver middleware requireCliente): la reserva
+    // siempre se crea a nombre de quien tiene la sesión, nunca de un
+    // id_cliente que mande el cliente en el body (evitaría que alguien
+    // reserve "a nombre de" otro cliente con solo cambiar un número).
+    const idCliente = req.usuario!.id;
 
     const TyItemHabitacion = await conn.getDbObjectClass('TY_ITEM_HABITACION');
     const TyTabHabitaciones = await conn.getDbObjectClass('TY_TAB_HABITACIONES');
@@ -153,6 +119,28 @@ export async function obtenerReserva(req: Request, res: Response): Promise<void>
     }
 
     res.json(result.rows[0]);
+  } finally {
+    await conn.close();
+  }
+}
+
+export async function misReservas(req: Request, res: Response): Promise<void> {
+  const conn = await getConnection();
+  try {
+    const idCliente = req.usuario!.id;
+    const result = await conn.execute(
+      `SELECT r.id_reserva, r.estado, r.fecha_checkin, r.fecha_checkout, r.valor_total,
+              a.nombre AS alojamiento, m.nombre AS municipio, h.numero AS habitacion, h.tipo_habitacion
+       FROM reserva r
+       JOIN reserva_habitacion rh ON rh.id_reserva = r.id_reserva
+       JOIN habitacion h ON h.id_habitacion = rh.id_habitacion
+       JOIN alojamiento a ON a.id_alojamiento = h.id_alojamiento
+       JOIN municipio m ON m.id_municipio = a.id_municipio
+       WHERE r.id_cliente = :idCliente
+       ORDER BY r.fecha_checkin DESC`,
+      { idCliente }
+    );
+    res.json(result.rows);
   } finally {
     await conn.close();
   }

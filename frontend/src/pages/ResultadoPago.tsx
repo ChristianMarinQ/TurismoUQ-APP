@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { Navbar } from '../components/Navbar';
 
 /**
  * Wompi redirige aquí después del checkout. El webhook (servidor a
@@ -35,13 +36,28 @@ export default function ResultadoPago() {
   }, [idReserva]);
 
   return (
-    <main className="contenedor">
-      <h1>Resultado del pago</h1>
-      {error && <p className="error">{error}</p>}
-      {!error && estado === null && <p>Consultando el estado de tu reserva #{idReserva}...</p>}
-      {estado === 'CONFIRMADA' && <p className="ok">¡Pago aprobado! Tu reserva #{idReserva} quedó confirmada.</p>}
-      {estado === 'PENDIENTE' && <p>Tu pago todavía se está procesando. Refresca en un momento.</p>}
-      <p><Link to="/">Volver al inicio</Link></p>
-    </main>
+    <div>
+      <Navbar />
+      <main className="mx-auto max-w-md px-4 py-16 text-center">
+        <h1 className="mb-4 text-2xl font-bold text-stone-900">Resultado del pago</h1>
+
+        {error && <p className="text-red-600">{error}</p>}
+        {!error && estado === null && <p className="text-stone-500">Consultando el estado de tu reserva #{idReserva}...</p>}
+        {estado === 'CONFIRMADA' && (
+          <div className="rounded-xl bg-emerald-50 p-6">
+            <p className="text-3xl">✅</p>
+            <p className="mt-2 font-medium text-emerald-800">¡Pago aprobado! Tu reserva #{idReserva} quedó confirmada.</p>
+          </div>
+        )}
+        {estado === 'PENDIENTE' && (
+          <div className="rounded-xl bg-amber-50 p-6">
+            <p className="text-3xl">⏳</p>
+            <p className="mt-2 text-amber-800">Tu pago todavía se está procesando. Refresca en un momento.</p>
+          </div>
+        )}
+
+        <Link to="/mis-reservas" className="btn-primary mt-6 inline-block">Ver mis reservas</Link>
+      </main>
+    </div>
   );
 }

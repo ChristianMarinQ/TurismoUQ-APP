@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, AlojamientoDetalle, Habitacion } from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import { Navbar } from '../components/Navbar';
+
+const ICONO_TIPO: Record<string, string> = {
+  'Finca Cafetera': '☕', Hotel: '🏨', Glamping: '⛺', Hostal: '🛏️',
+};
 
 export default function Alojamiento() {
   const { id } = useParams<{ id: string }>();
+  const { sesion } = useAuth();
+  const navigate = useNavigate();
+
   const [alojamiento, setAlojamiento] = useState<AlojamientoDetalle | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,10 +22,6 @@ export default function Alojamiento() {
   const [disponible, setDisponible] = useState<boolean | null>(null);
   const [valorEstadia, setValorEstadia] = useState(0);
   const [numHuespedes, setNumHuespedes] = useState(1);
-
-  const [cliente, setCliente] = useState({
-    nombre: '', apellido: '', tipoDocumento: 'CC', numeroDocumento: '', email: '', telefono: '',
-  });
   const [procesando, setProcesando] = useState(false);
 
   useEffect(() => {
@@ -38,11 +43,16 @@ export default function Alojamiento() {
 
   async function reservarYPagar() {
     if (!habitacionSel) return;
+
+    if (!sesion) {
+      navigate('/login', { state: { desde: `/alojamientos/${id}` } });
+      return;
+    }
+
     setProcesando(true);
     setError(null);
     try {
       const { idReserva } = await api.crearReserva({
-        cliente,
         idHabitacion: habitacionSel.ID_HABITACION,
         numHuespedes,
         checkin,
@@ -56,76 +66,101 @@ export default function Alojamiento() {
     }
   }
 
-  if (error) return <main className="contenedor"><p className="error">{error}</p></main>;
-  if (!alojamiento) return <main className="contenedor"><p>Cargando...</p></main>;
+  if (error && !alojamiento) return <main className="p-8 text-red-600">{error}</main>;
+  if (!alojamiento) return <main className="p-8 text-stone-500">Cargando...</main>;
 
   return (
-    <main className="contenedor">
-      <h1>{alojamiento.NOMBRE}</h1>
-      <p>{alojamiento.MUNICIPIO} — {alojamiento.TIPO_ALOJAMIENTO}</p>
-      <p>{alojamiento.DIRECCION}</p>
+    <div>
+      <Navbar />
 
-      <h2>Habitaciones</h2>
-      <div className="grilla">
-        {alojamiento.habitaciones.map((h) => (
-          <button
-            key={h.ID_HABITACION}
-            className={`tarjeta ${habitacionSel?.ID_HABITACION === h.ID_HABITACION ? 'seleccionada' : ''}`}
-            onClick={() => { setHabitacionSel(h); setDisponible(null); }}
-          >
-            <strong>{h.TIPO_HABITACION}</strong>
-            <p>Habitación {h.NUMERO} · capacidad {h.CAPACIDAD}</p>
-          </button>
-        ))}
+      <div className="flex h-56 items-center justify-center bg-gradient-to-br from-brand-100 to-brand-200 text-6xl">
+        {ICONO_TIPO[alojamiento.TIPO_ALOJAMIENTO] ?? '🏠'}
       </div>
 
-      {habitacionSel && (
-        <section className="panel">
-          <h2>Reservar habitación {habitacionSel.NUMERO}</h2>
+      <main className="mx-auto max-w-5xl px-4 py-8">
+        <p className="text-xs font-medium uppercase tracking-wide text-brand-600">{alojamiento.TIPO_ALOJAMIENTO}</p>
+        <h1 className="mt-1 text-3xl font-bold text-stone-900">{alojamiento.NOMBRE}</h1>
+        <p className="mt-1 text-stone-500">{alojamiento.MUNICIPIO} · {alojamiento.DIRECCION}</p>
+        <p className="mt-1 flex items-center gap-1 text-amber-600">⭐ {Number(alojamiento.CALIFICACION_PROMEDIO).toFixed(1)}</p>
 
-          <div className="fila">
-            <label>Check-in <input type="date" value={checkin} onChange={(e) => setCheckin(e.target.value)} /></label>
-            <label>Check-out <input type="date" value={checkout} onChange={(e) => setCheckout(e.target.value)} /></label>
-            <label>Huéspedes
-              <input
-                type="number" min={1} max={habitacionSel.CAPACIDAD} value={numHuespedes}
-                onChange={(e) => setNumHuespedes(Number(e.target.value))}
-              />
-            </label>
-            <button onClick={verificarDisponibilidad} disabled={!checkin || !checkout}>Verificar disponibilidad</button>
+        {alojamiento.servicios.length > 0 && (
+          <div className="mt-6">
+            <h2 className="mb-2 font-semibold text-stone-900">Servicios</h2>
+            <div className="flex flex-wrap gap-2">
+              {alojamiento.servicios.map((s) => (
+                <span key={s.ID_SERVICIO} className="badge bg-stone-100 text-stone-700">
+                  {s.NOMBRE}{Number(s.PRECIO) > 0 && ` · $${Number(s.PRECIO).toLocaleString('es-CO')}`}
+                </span>
+              ))}
+            </div>
           </div>
+        )}
 
-          {disponible === true && (
-            <>
-              <p className="ok">Disponible — valor de la estadía: ${valorEstadia.toLocaleString('es-CO')} COP</p>
+        <h2 className="mb-3 mt-8 text-xl font-semibold text-stone-900">Elige una habitación</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {alojamiento.habitaciones.map((h) => (
+            <button
+              key={h.ID_HABITACION}
+              onClick={() => { setHabitacionSel(h); setDisponible(null); }}
+              className={`card p-4 text-left transition ${habitacionSel?.ID_HABITACION === h.ID_HABITACION ? 'ring-2 ring-brand-600' : 'hover:shadow-md'}`}
+            >
+              <p className="font-semibold text-stone-900">{h.TIPO_HABITACION}</p>
+              <p className="text-sm text-stone-500">Habitación {h.NUMERO} · hasta {h.CAPACIDAD} huéspedes</p>
+            </button>
+          ))}
+        </div>
 
-              <h3>Tus datos</h3>
-              <div className="fila">
-                <input placeholder="Nombre" value={cliente.nombre} onChange={(e) => setCliente({ ...cliente, nombre: e.target.value })} />
-                <input placeholder="Apellido" value={cliente.apellido} onChange={(e) => setCliente({ ...cliente, apellido: e.target.value })} />
-              </div>
-              <div className="fila">
-                <select value={cliente.tipoDocumento} onChange={(e) => setCliente({ ...cliente, tipoDocumento: e.target.value })}>
-                  <option value="CC">CC</option>
-                  <option value="CE">CE</option>
-                  <option value="PA">PA</option>
-                  <option value="TI">TI</option>
-                </select>
-                <input placeholder="Número de documento" value={cliente.numeroDocumento} onChange={(e) => setCliente({ ...cliente, numeroDocumento: e.target.value })} />
-              </div>
-              <div className="fila">
-                <input placeholder="Email" type="email" value={cliente.email} onChange={(e) => setCliente({ ...cliente, email: e.target.value })} />
-                <input placeholder="Teléfono" value={cliente.telefono} onChange={(e) => setCliente({ ...cliente, telefono: e.target.value })} />
-              </div>
+        {habitacionSel && (
+          <section className="card mt-8 p-6">
+            <h2 className="mb-4 text-lg font-semibold text-stone-900">Reservar habitación {habitacionSel.NUMERO}</h2>
 
-              <button className="principal" onClick={reservarYPagar} disabled={procesando}>
-                {procesando ? 'Procesando...' : `Reservar y pagar $${valorEstadia.toLocaleString('es-CO')}`}
+            {error && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-500">Check-in</label>
+                <input type="date" className="input-field" value={checkin} onChange={(e) => setCheckin(e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-500">Check-out</label>
+                <input type="date" className="input-field" value={checkout} onChange={(e) => setCheckout(e.target.value)} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-stone-500">Huéspedes</label>
+                <input
+                  type="number" min={1} max={habitacionSel.CAPACIDAD} value={numHuespedes} className="input-field w-24"
+                  onChange={(e) => setNumHuespedes(Number(e.target.value))}
+                />
+              </div>
+              <button className="btn-secondary" onClick={verificarDisponibilidad} disabled={!checkin || !checkout}>
+                Verificar disponibilidad
               </button>
-            </>
-          )}
-          {disponible === false && <p className="error">Esa habitación no está disponible en esas fechas.</p>}
-        </section>
-      )}
-    </main>
+            </div>
+
+            {disponible === true && (
+              <div className="mt-5 rounded-lg bg-emerald-50 p-4">
+                <p className="font-medium text-emerald-800">
+                  Disponible — valor de la estadía: ${valorEstadia.toLocaleString('es-CO')} COP
+                </p>
+
+                {!sesion && (
+                  <p className="mt-2 text-sm text-emerald-700">
+                    <Link to="/login" state={{ desde: `/alojamientos/${id}` }} className="font-semibold underline">Inicia sesión</Link> o{' '}
+                    <Link to="/registro" className="font-semibold underline">crea una cuenta</Link> para completar la reserva.
+                  </p>
+                )}
+
+                <button className="btn-primary mt-3" onClick={reservarYPagar} disabled={procesando}>
+                  {procesando ? 'Procesando...' : `Reservar y pagar $${valorEstadia.toLocaleString('es-CO')}`}
+                </button>
+              </div>
+            )}
+            {disponible === false && (
+              <p className="mt-5 rounded-lg bg-red-50 px-3 py-2 text-red-700">Esa habitación no está disponible en esas fechas.</p>
+            )}
+          </section>
+        )}
+      </main>
+    </div>
   );
 }
