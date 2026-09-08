@@ -16,7 +16,14 @@
 
 GRANT CREATE ANY CONTEXT     TO turismouq; -- necesario para 03_contexto_y_rls.sql
 GRANT EXEMPT ACCESS POLICY   TO turismouq; -- turismouq queda EXENTO del RLS que se crea después
-GRANT EXECUTE ON DBMS_RLS    TO turismouq; -- no viene otorgado a PUBLIC por defecto en Oracle XE
+
+-- EXECUTE ON DBMS_RLS no viene otorgado a PUBLIC por defecto, y en Oracle
+-- XE ni siquiera SYSTEM puede otorgarlo -- hace falta conectarse como
+-- SYS (misma clave que SYSTEM en la instalación de XE):
+--   sqlplus sys/<tu_clave>@//localhost:1521/XEPDB1 AS SYSDBA
+--   GRANT EXECUTE ON DBMS_RLS TO turismouq;
+-- Si tu SYSTEM sí puede, la línea de abajo hace lo mismo:
+GRANT EXECUTE ON DBMS_RLS    TO turismouq;
 
 -- CAMBIA esta clave antes de usarla en serio.
 CREATE USER turismouq_app IDENTIFIED BY "&&clave_turismouq_app"
