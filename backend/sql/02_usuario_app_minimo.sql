@@ -16,6 +16,7 @@
 
 GRANT CREATE ANY CONTEXT     TO turismouq; -- necesario para 03_contexto_y_rls.sql
 GRANT EXEMPT ACCESS POLICY   TO turismouq; -- turismouq queda EXENTO del RLS que se crea después
+GRANT EXECUTE ON DBMS_RLS    TO turismouq; -- no viene otorgado a PUBLIC por defecto en Oracle XE
 
 -- CAMBIA esta clave antes de usarla en serio.
 CREATE USER turismouq_app IDENTIFIED BY "&&clave_turismouq_app"
