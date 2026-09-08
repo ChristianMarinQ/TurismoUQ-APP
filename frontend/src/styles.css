@@ -1,0 +1,28 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #f7f5f2;
+  color: #2b2620;
+}
+.contenedor { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { color: #6b3f1d; }
+.error { color: #b3261e; }
+.ok { color: #1e7b34; font-weight: 600; }
+.filtros { margin: 16px 0; }
+.grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin: 16px 0; }
+.tarjeta {
+  background: white; border: 1px solid #e0dbd3; border-radius: 12px; padding: 16px;
+  text-decoration: none; color: inherit; text-align: left; cursor: pointer;
+}
+.tarjeta:hover { border-color: #6b3f1d; }
+.tarjeta.seleccionada { border-color: #6b3f1d; box-shadow: 0 0 0 2px #6b3f1d33; }
+.panel { background: white; border-radius: 12px; padding: 24px; margin-top: 24px; border: 1px solid #e0dbd3; }
+.fila { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.fila input, .fila select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; flex: 1; min-width: 140px; }
+button { cursor: pointer; }
+button.principal {
+  background: #6b3f1d; color: white; border: none; padding: 12px 20px;
+  border-radius: 8px; font-size: 1rem; margin-top: 8px;
+}
+button.principal:disabled { opacity: 0.6; cursor: not-allowed; }
