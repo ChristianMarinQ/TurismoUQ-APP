@@ -25,7 +25,7 @@ GRANT EXEMPT ACCESS POLICY   TO turismouq; -- turismouq queda EXENTO del RLS que
 -- Si tu SYSTEM si puede, la linea de abajo hace lo mismo:
 GRANT EXECUTE ON DBMS_RLS    TO turismouq;
 
--- CAMBIA esta clave antes de usarla en serio.
+-- La clave no va escrita aqui: sqlplus la pide al ejecutar el script. Usa la misma en DB_PASSWORD de backend/.env.
 CREATE USER turismouq_app IDENTIFIED BY "&&clave_turismouq_app"
   DEFAULT TABLESPACE users;
 
