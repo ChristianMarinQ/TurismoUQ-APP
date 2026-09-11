@@ -20,7 +20,24 @@ export function construirUrlCheckout({ idReserva, montoEnPesos }: DatosCheckout)
   // La referencia debe ser única por intento de pago (no solo por reserva),
   // por si el cliente reintenta un pago fallido.
   const reference = `TURISMOUQ-RES-${idReserva}-${Date.now()}`;
-  const redirectUrl = `${process.env.FRONTEND_URL}/pago/resultado?reserva=${idReserva}`;
+
+  // El checkout de Wompi está detrás de AWS CloudFront, cuyo cortafuegos
+  // RECHAZA CON 403 cualquier petición que lleve "localhost" en la URL (regla
+  // genérica contra SSRF). Por eso no se le puede pasar directamente la
+  // dirección del frontend de desarrollo.
+  //
+  // La vuelta: se le da una URL pública nuestra (el túnel), que apunta a un
+  // endpoint del backend cuyo único trabajo es responder un 302 hacia el
+  // frontend real. Wompi nunca ve "localhost"; el salto final lo da el
+  // navegador del cliente, que sí puede resolverlo porque corre en su equipo.
+  //
+  // PUBLIC_URL es la base pública del BACKEND (la del túnel). Sin ella se cae
+  // al comportamiento antiguo, que solo sirve cuando el frontend ya está
+  // desplegado en un dominio público de verdad.
+  const basePublica = process.env.PUBLIC_URL?.replace(/\/$/, '');
+  const redirectUrl = basePublica
+    ? `${basePublica}/api/pagos/retorno?reserva=${idReserva}`
+    : `${process.env.FRONTEND_URL}/pago/resultado?reserva=${idReserva}`;
 
   // Firma de integridad: SHA256(referencia + monto_en_centavos + moneda + secreto)
   const cadena = `${reference}${amountInCents}${currency}${integritySecret}`;
@@ -84,7 +101,21 @@ export function verificarFirmaWebhook(evento: EventoWompi): boolean {
   if (!mismasPropiedades) return false;
 
   const eventsSecret = process.env.WOMPI_EVENTS_SECRET!;
-  const concatenado = PROPIEDADES_FIRMADAS_ESPERADAS.map((prop) => String(valorPorPath(evento, prop) ?? '')).join('');
+
+  // Las rutas de signature.properties ("transaction.id", "transaction.status")
+  // son RELATIVAS A `data`, no a la raíz del evento. Resolverlas contra la raíz
+  // devolvía undefined en las tres, la cadena firmada quedaba como
+  // "" + "" + "" + timestamp + secreto, y el checksum no coincidía nunca: se
+  // rechazaban TODOS los webhooks y las reservas se quedaban en PENDIENTE
+  // aunque el pago estuviera aprobado.
+  const valores = PROPIEDADES_FIRMADAS_ESPERADAS.map((prop) => valorPorPath(evento.data, prop));
+
+  // Si alguna ruta no resuelve, se rechaza en vez de firmar sobre una cadena
+  // vacía. Sin esto, un error de rutas como el anterior vuelve a fallar de
+  // forma muda: todos los eventos rechazados y ninguna pista del motivo.
+  if (valores.some((v) => v === undefined || v === null || v === '')) return false;
+
+  const concatenado = valores.map(String).join('');
   const cadena = `${concatenado}${evento.timestamp}${eventsSecret}`;
   const checksumCalculado = crypto.createHash('sha256').update(cadena).digest('hex').toUpperCase();
 

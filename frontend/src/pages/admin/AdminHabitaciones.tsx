@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { api, Habitacion } from '../../api/client';
-import { Cargando, ErrorEstado, Vacio } from '../../components/EstadosUI';
+import { EsqueletoTabla, ErrorEstado, Vacio, Spinner } from '../../components/EstadosUI';
 
 const TIPOS = ['INDIVIDUAL', 'DOBLE', 'TRIPLE', 'SUITE', 'FAMILIAR'];
 const ESTADOS = ['DISPONIBLE', 'MANTENIMIENTO', 'INACTIVA'];
@@ -25,15 +26,21 @@ export default function AdminHabitaciones() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  const [guardando, setGuardando] = useState(false);
+
   async function crear(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setGuardando(true);
     try {
       await api.adminCrearHabitacion(idAlojamiento, nueva);
+      toast.success(`Habitación ${nueva.numero} agregada.`);
       setNueva({ numero: '', tipoHabitacion: 'DOBLE', capacidad: 2 });
       cargar();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
+    } finally {
+      setGuardando(false);
     }
   }
 
@@ -44,9 +51,10 @@ export default function AdminHabitaciones() {
         capacidad: cambios.capacidad ?? h.CAPACIDAD,
         estado: cambios.estado ?? h.ESTADO,
       });
+      toast.success(`Habitación ${h.NUMERO} actualizada.`);
       cargar();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
     }
   }
 
@@ -72,17 +80,20 @@ export default function AdminHabitaciones() {
           <label className="mb-1 block text-xs font-medium text-stone-500">Capacidad</label>
           <input type="number" min={1} className="input-field w-24" value={nueva.capacidad} onChange={(e) => setNueva({ ...nueva, capacidad: Number(e.target.value) })} />
         </div>
-        <button type="submit" className="btn-primary">+ Agregar habitación</button>
+        <button type="submit" className="btn-primary" disabled={guardando}>
+          {guardando && <Spinner />}
+          {guardando ? 'Agregando...' : '+ Agregar habitación'}
+        </button>
       </form>
 
-      {cargando && <Cargando mensaje="Cargando habitaciones..." />}
+      {cargando && <EsqueletoTabla filas={6} columnas={4} />}
       {!cargando && !habitaciones && <ErrorEstado mensaje="No se pudieron cargar las habitaciones." onReintentar={cargar} />}
       {!cargando && habitaciones && habitaciones.length === 0 && (
         <Vacio icono="🛏️" titulo="Este alojamiento no tiene habitaciones todavía" descripcion="Agrega la primera con el formulario de arriba." />
       )}
 
       {!cargando && habitaciones && habitaciones.length > 0 && (
-        <div className="card overflow-x-auto">
+        <div className="card animate-aparecer overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-stone-200 bg-stone-50 text-left text-stone-500">
               <tr>

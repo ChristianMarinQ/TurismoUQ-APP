@@ -1,8 +1,8 @@
 -- =====================================================================
--- TurismoUQ-App — 01_tablas_auth.sql
+-- TurismoUQ-App - 01_tablas_auth.sql
 -- Tablas SOLO para la app (login de clientes + panel admin). Viven en
 -- el mismo esquema turismouq pero por fuera de las 14 tablas del
--- entregable académico — no modifican CLIENTE ni ninguna tabla
+-- entregable academico - no modifican CLIENTE ni ninguna tabla
 -- calificada de la Entrega 1.
 -- Ejecutar conectado como: turismouq/<tu_clave>@//localhost:1521/XEPDB1
 -- =====================================================================

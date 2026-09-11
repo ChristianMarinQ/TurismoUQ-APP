@@ -4,24 +4,64 @@
 
 @layer base {
   body {
-    @apply bg-stone-50 text-stone-900 antialiased;
+    @apply bg-white text-zinc-900 antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  h1, h2, h3 {
+    @apply tracking-tighter;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg bg-brand-700 px-5 py-2.5 font-medium text-white shadow-sm transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-5 py-3 text-sm font-semibold text-white
+           transition-all duration-200 ease-suave
+           hover:bg-zinc-800 active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100;
+  }
+  .btn-acento {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white shadow-suave
+           transition-all duration-200 ease-suave
+           hover:bg-brand-700 hover:shadow-elevada active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg border border-stone-300 bg-white px-5 py-2.5 font-medium text-stone-700 shadow-sm transition hover:bg-stone-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 py-3 text-sm font-semibold text-zinc-700
+           transition-all duration-200 ease-suave
+           hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.98]
+           disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100;
   }
   .input-field {
-    @apply w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
+    @apply w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400
+           transition-all duration-150
+           focus:border-zinc-900 focus:outline-none focus:ring-4 focus:ring-zinc-900/5;
   }
   .card {
-    @apply rounded-xl border border-stone-200 bg-white shadow-sm;
+    @apply rounded-2xl border border-zinc-200/80 bg-white shadow-suave;
   }
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+  .etiqueta {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-500;
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-zinc-100;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full animate-brillo bg-gradient-to-r from-transparent via-white/70 to-transparent;
+    content: '';
   }
 }

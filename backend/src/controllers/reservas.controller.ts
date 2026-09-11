@@ -54,11 +54,12 @@ export async function consultarDisponibilidad(req: Request, res: Response): Prom
 export async function crearReserva(req: Request, res: Response, next: NextFunction): Promise<void> {
   const conn = await getConnection();
   try {
-    const { idHabitacion, numHuespedes, checkin, checkout } = req.body as {
+    const { idHabitacion, numHuespedes, checkin, checkout, servicios } = req.body as {
       idHabitacion: number;
       numHuespedes: number;
       checkin: string;
       checkout: string;
+      servicios?: { idServicio: number; cantidad: number }[];
     };
 
     // req.usuario viene del JWT (ver middleware requireCliente): la reserva
@@ -99,8 +100,45 @@ export async function crearReserva(req: Request, res: Response, next: NextFuncti
       }
     );
 
-    const idReserva = (result.outBinds as { idReserva: number[] }).idReserva[0];
+    // Un OUT bind de un bloque PL/SQL devuelve un ESCALAR, no un array. El
+    // array solo aparece en el RETURNING INTO de un DML (ahí puede volver una
+    // fila por cada registro afectado). Leer [0] de un número da undefined, que
+    // se acababa enviando como NULL a las consultas siguientes: la reserva se
+    // creaba en la base, pero la API respondía sin idReserva y con total 0, y
+    // el pago nunca podía arrancar.
+    const idReserva = (result.outBinds as { idReserva: number }).idReserva;
 
+    if (!idReserva) {
+      throw new Error('sp_crear_reserva no devolvio el id de la reserva.');
+    }
+
+    // Los servicios se añaden DENTRO de la misma transacción, antes del commit:
+    // si alguno es inválido, el rollback del catch deshace también la reserva y
+    // no queda una reserva a medias sin los extras que el cliente pidió.
+    if (servicios?.length) {
+      const TyItemServicio = await conn.getDbObjectClass('TY_ITEM_SERVICIO');
+      const TyTabServicios = await conn.getDbObjectClass('TY_TAB_SERVICIOS');
+
+      const tablaServicios = new TyTabServicios(
+        servicios.map((s) => new TyItemServicio({ ID_SERVICIO: s.idServicio, CANTIDAD: s.cantidad }))
+      );
+
+      // Se pasa idCliente (el del JWT, no uno del body) para que el paquete
+      // compruebe que la reserva es de quien dice ser.
+      await conn.execute(
+        `BEGIN
+           pkg_servicios_app.sp_agregar_servicios(
+             p_id_reserva => :idReserva,
+             p_id_cliente => :idCliente,
+             p_servicios  => :servicios
+           );
+         END;`,
+        { idReserva, idCliente, servicios: tablaServicios }
+      );
+    }
+
+    // Se lee DESPUÉS de agregar los servicios: sp_agregar_servicios suma su
+    // importe a valor_total, así que leerlo antes devolvería solo la estadía.
     const total = await conn.execute<{ VALOR_TOTAL: number }>(
       `SELECT valor_total FROM reserva WHERE id_reserva = :id`,
       { id: idReserva }
@@ -158,7 +196,21 @@ export async function obtenerReserva(req: Request, res: Response): Promise<void>
       return;
     }
 
-    res.json(result.rows[0]);
+    // Los servicios contratados se piden aparte y solo después de que la
+    // consulta anterior haya confirmado que esta reserva es visible para quien
+    // pregunta: así esta segunda consulta no puede filtrar nada por su cuenta.
+    // Va secuencial porque oracledb no admite dos execute a la vez en la misma
+    // conexión.
+    const servicios = await conn.execute(
+      `SELECT rs.id_servicio, s.nombre, rs.cantidad, rs.precio_unitario
+       FROM reserva_servicio rs
+       JOIN servicio s ON s.id_servicio = rs.id_servicio
+       WHERE rs.id_reserva = :id
+       ORDER BY s.nombre`,
+      { id }
+    );
+
+    res.json({ ...(result.rows[0] as object), servicios: servicios.rows ?? [] });
   } finally {
     await conn.close();
   }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/client';
-import { Cargando, ErrorEstado } from '../../components/EstadosUI';
+import { ErrorEstado } from '../../components/EstadosUI';
 
 interface Stats {
   reservasPorEstado: { ESTADO: string; CANTIDAD: number }[];
@@ -22,7 +22,28 @@ export default function AdminDashboard() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  if (cargando) return <Cargando mensaje="Cargando estadísticas..." />;
+  if (cargando) {
+    return (
+      <div>
+        <div className="skeleton mb-6 h-8 w-40" />
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="card space-y-3 p-5">
+              <div className="skeleton h-3 w-32" />
+              <div className="skeleton h-7 w-24" />
+            </div>
+          ))}
+        </div>
+        <div className="card space-y-3 p-5">
+          <div className="skeleton h-4 w-44" />
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="skeleton h-3 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (error || !stats) return <ErrorEstado mensaje={error ?? 'No se pudieron cargar las estadísticas.'} onReintentar={cargar} />;
 
   const tarjetas = [
@@ -36,8 +57,8 @@ export default function AdminDashboard() {
       <h1 className="mb-6 text-2xl font-bold text-stone-900">Resumen</h1>
 
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {tarjetas.map((t) => (
-          <div key={t.label} className="card p-5">
+        {tarjetas.map((t, i) => (
+          <div key={t.label} className="card animate-subir p-5" style={{ animationDelay: `${i * 60}ms` }}>
             <p className="text-sm text-stone-500">{t.label}</p>
             <p className="mt-1 text-2xl font-bold text-stone-900">{t.valor}</p>
           </div>

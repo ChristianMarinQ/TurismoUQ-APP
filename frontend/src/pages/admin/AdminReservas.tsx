@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/client';
-import { Cargando, ErrorEstado, Vacio } from '../../components/EstadosUI';
+import { EsqueletoTabla, ErrorEstado, Vacio } from '../../components/EstadosUI';
 
 interface FilaReserva {
   ID_RESERVA: number;
@@ -43,7 +43,7 @@ export default function AdminReservas() {
         </select>
       </div>
 
-      {cargando && <Cargando mensaje="Cargando reservas..." />}
+      {cargando && <EsqueletoTabla filas={8} columnas={6} />}
       {!cargando && error && <ErrorEstado mensaje={error} onReintentar={cargar} />}
 
       {!cargando && !error && reservas && reservas.length === 0 && (
@@ -51,7 +51,7 @@ export default function AdminReservas() {
       )}
 
       {!cargando && !error && reservas && reservas.length > 0 && (
-        <div className="card overflow-x-auto">
+        <div className="card animate-aparecer overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-stone-200 bg-stone-50 text-left text-stone-500">
               <tr>
@@ -67,7 +67,7 @@ export default function AdminReservas() {
             </thead>
             <tbody>
               {reservas.map((r) => (
-                <tr key={r.ID_RESERVA} className="border-b border-stone-100">
+                <tr key={r.ID_RESERVA} className="border-b border-stone-100 transition-colors duration-150 hover:bg-stone-50">
                   <td className="px-4 py-2">{r.ID_RESERVA}</td>
                   <td className="px-4 py-2">{r.CLIENTE}<br /><span className="text-xs text-stone-400">{r.EMAIL}</span></td>
                   <td className="px-4 py-2">{r.ALOJAMIENTO}</td>

@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { VerificacionHumano, reiniciarVerificacion, verificacionActiva } from '../../components/VerificacionHumano';
 
 export default function AdminLogin() {
   const { loginAdmin } = useAuth();
@@ -9,16 +10,20 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [token, setToken] = useState('');
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setCargando(true);
     try {
-      await loginAdmin(username, password);
+      await loginAdmin(username, password, token);
       navigate('/admin');
     } catch (err) {
       setError((err as Error).message);
+      // El token es de un solo uso: tras un fallo hay que pedir otro.
+      setToken('');
+      reiniciarVerificacion();
     } finally {
       setCargando(false);
     }
@@ -35,7 +40,9 @@ export default function AdminLogin() {
         <input placeholder="Usuario" required className="input-field" value={username} onChange={(e) => setUsername(e.target.value)} />
         <input type="password" placeholder="Contraseña" required className="input-field" value={password} onChange={(e) => setPassword(e.target.value)} />
 
-        <button type="submit" className="btn-primary w-full" disabled={cargando}>
+        <VerificacionHumano onToken={setToken} />
+
+        <button type="submit" className="btn-primary w-full" disabled={cargando || (verificacionActiva && !token)}>
           {cargando ? 'Entrando...' : 'Entrar'}
         </button>
       </form>

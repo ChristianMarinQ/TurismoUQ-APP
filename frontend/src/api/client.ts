@@ -36,10 +36,53 @@ export interface Habitacion {
   ESTADO: string;
 }
 
+/**
+ * La habitación tal como llega en el detalle del alojamiento: además de lo
+ * básico trae el rango de tarifas propio. Vienen en `null` cuando esa
+ * habitación todavía no tiene tarifas cargadas.
+ */
+export interface HabitacionDetalle extends Habitacion {
+  PRECIO_DESDE: number | null;
+  PRECIO_HASTA: number | null;
+}
+
+export interface Servicio {
+  ID_SERVICIO: number;
+  NOMBRE: string;
+  DESCRIPCION?: string | null;
+  PRECIO: number;
+}
+
+/** Un servicio ya contratado dentro de una reserva. */
+export interface ServicioReserva {
+  ID_SERVICIO: number;
+  NOMBRE: string;
+  CANTIDAD: number;
+  PRECIO_UNITARIO: number;
+}
+
+/** Lo que se manda al crear la reserva: qué servicio y cuántas unidades. */
+export interface ServicioSolicitado {
+  idServicio: number;
+  cantidad: number;
+}
+
 export interface AlojamientoDetalle extends AlojamientoResumen {
   DIRECCION: string;
-  habitaciones: Habitacion[];
-  servicios: { ID_SERVICIO: number; NOMBRE: string; PRECIO: number }[];
+  habitaciones: HabitacionDetalle[];
+  servicios: Servicio[];
+}
+
+export interface DiaCalendario {
+  FECHA: string;
+  TEMPORADA: string | null;
+  TIPO: 'BAJA' | 'MEDIA' | 'ALTA' | null;
+  VALOR_NOCHE: number | null;
+}
+
+export interface CalendarioPrecios {
+  dias: DiaCalendario[];
+  resumen: { MINIMO: number | null; MAXIMO: number | null };
 }
 
 export interface Sesion {
@@ -60,16 +103,35 @@ export interface ReservaResumen {
   TIPO_HABITACION: string;
 }
 
+/**
+ * El detalle de una reserva, con los servicios que se contrataron. `VALOR_TOTAL`
+ * ya incluye la estadía y los servicios: el desglose se obtiene restando.
+ */
+export interface ReservaDetalle {
+  ID_RESERVA: number;
+  ESTADO: string;
+  FECHA_CHECKIN: string;
+  FECHA_CHECKOUT: string;
+  VALOR_TOTAL: number;
+  NOMBRE: string;
+  APELLIDO: string;
+  ALOJAMIENTO: string;
+  HABITACION: string;
+  servicios: ServicioReserva[];
+}
+
 export const api = {
   // --- Auth ---
+  // `turnstileToken` lo produce el widget anti-bot y lo valida el backend
+  // contra Cloudflare antes de mirar siquiera las credenciales.
   registrarCliente: (payload: {
     nombre: string; apellido: string; tipoDocumento: string; numeroDocumento: string;
-    email: string; telefono?: string; password: string; sitio?: string;
+    email: string; telefono?: string; password: string; sitio?: string; turnstileToken?: string;
   }) => pedir<Sesion>('/auth/registro', { method: 'POST', body: JSON.stringify(payload) }),
-  loginCliente: (email: string, password: string) =>
-    pedir<Sesion>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  loginAdmin: (username: string, password: string) =>
-    pedir<Sesion>('/auth/admin/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  loginCliente: (email: string, password: string, turnstileToken?: string) =>
+    pedir<Sesion>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, turnstileToken }) }),
+  loginAdmin: (username: string, password: string, turnstileToken?: string) =>
+    pedir<Sesion>('/auth/admin/login', { method: 'POST', body: JSON.stringify({ username, password, turnstileToken }) }),
   logout: () => pedir<void>('/auth/logout', { method: 'POST' }),
   quienSoy: () => pedir<Sesion>('/auth/yo'),
 
@@ -84,18 +146,29 @@ export const api = {
     return pedir<AlojamientoResumen[]>(`/alojamientos${query ? `?${query}` : ''}`);
   },
   obtenerAlojamiento: (id: number) => pedir<AlojamientoDetalle>(`/alojamientos/${id}`),
+  // Sin `idHabitacion` devuelve el precio "desde" del alojamiento; con él, la
+  // tarifa de esa habitación en concreto.
+  calendarioPrecios: (idAlojamiento: number, desde: string, hasta: string, idHabitacion?: number) => {
+    const qs = new URLSearchParams({ desde, hasta });
+    if (idHabitacion) qs.set('habitacion', String(idHabitacion));
+    return pedir<CalendarioPrecios>(`/alojamientos/${idAlojamiento}/calendario?${qs.toString()}`);
+  },
   consultarDisponibilidad: (idHabitacion: number, checkin: string, checkout: string) =>
     pedir<{ disponible: boolean; valorEstadia: number }>(
       `/disponibilidad?idHabitacion=${idHabitacion}&checkin=${checkin}&checkout=${checkout}`
     ),
 
   // --- Reservas (cliente autenticado) ---
-  crearReserva: (payload: { idHabitacion: number; numHuespedes: number; checkin: string; checkout: string }) =>
+  // `servicios` es opcional: se omite del cuerpo cuando no se contrató ninguno.
+  crearReserva: (payload: {
+    idHabitacion: number; numHuespedes: number; checkin: string; checkout: string;
+    servicios?: ServicioSolicitado[];
+  }) =>
     pedir<{ idReserva: number; valorTotal: number }>('/reservas', { method: 'POST', body: JSON.stringify(payload) }),
   misReservas: () => pedir<ReservaResumen[]>('/reservas/mias'),
   iniciarPago: (idReserva: number) =>
     pedir<{ urlCheckout: string }>(`/reservas/${idReserva}/pago`, { method: 'POST' }),
-  obtenerReserva: (idReserva: number) => pedir<Record<string, unknown>>(`/reservas/${idReserva}`),
+  obtenerReserva: (idReserva: number) => pedir<ReservaDetalle>(`/reservas/${idReserva}`),
 
   // --- Admin ---
   adminEstadisticas: () =>

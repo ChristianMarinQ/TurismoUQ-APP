@@ -22,8 +22,15 @@ export async function registrarCliente(req: Request, res: Response, next: NextFu
       email: string; telefono?: string; password: string;
     };
 
+    // El email se compara con LOWER() en los dos lados. Zod ya lo pasa a
+    // minúsculas al entrar, pero Oracle distingue mayúsculas al comparar: si en
+    // la carga de datos quedó un 'Juan@X.com', sin esto alguien podría
+    // registrarse como 'juan@x.com' y acabaríamos con dos cuentas para la misma
+    // persona. Cuesta el uso del índice de email, que a esta escala no importa.
     const existente = await conn.execute<{ ID_CLIENTE: number }>(
-      `SELECT id_cliente FROM cliente WHERE email = :email OR (tipo_documento = :td AND numero_documento = :nd)`,
+      `SELECT id_cliente FROM cliente
+        WHERE LOWER(email) = LOWER(:email)
+           OR (tipo_documento = :td AND numero_documento = :nd)`,
       { email, td: tipoDocumento, nd: numeroDocumento }
     );
     if (existente.rows && existente.rows.length > 0) {
@@ -71,7 +78,7 @@ export async function loginCliente(req: Request, res: Response, next: NextFuncti
       `SELECT c.id_cliente, c.nombre, c.apellido, ac.password_hash
        FROM cliente c
        JOIN app_credencial_cliente ac ON ac.id_cliente = c.id_cliente
-       WHERE c.email = :email`,
+       WHERE LOWER(c.email) = LOWER(:email)`,
       { email }
     );
 

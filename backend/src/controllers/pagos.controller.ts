@@ -142,3 +142,29 @@ export async function webhookWompi(req: Request, res: Response): Promise<void> {
     await conn.close();
   }
 }
+
+/**
+ * Punto de retorno del checkout de Wompi.
+ *
+ * Existe solo para sortear el cortafuegos de Wompi: su checkout responde 403 a
+ * cualquier URL que contenga "localhost", así que no se le puede pasar la
+ * direccion del frontend de desarrollo como `redirect-url`. En su lugar se le
+ * da la URL publica del tunel apuntando aqui, y este endpoint reenvia el
+ * navegador al frontend real con un 302.
+ *
+ * No es un "open redirect": el destino sale siempre de FRONTEND_URL, que es
+ * configuracion del servidor, y de la URL solo se toma un entero. Si alguien
+ * manipula `reserva`, como mucho consigue que el frontend le muestre un 404 de
+ * una reserva que no es suya.
+ */
+export function retornoPago(req: Request, res: Response): void {
+  const idReserva = Number(req.query.reserva);
+  const destino = `${process.env.FRONTEND_URL}/pago/resultado`;
+
+  if (!Number.isInteger(idReserva) || idReserva <= 0) {
+    res.redirect(302, destino);
+    return;
+  }
+
+  res.redirect(302, `${destino}?reserva=${idReserva}`);
+}

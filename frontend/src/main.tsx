@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext';
 import { RutaProtegida } from './components/RutaProtegida';
 import { AdminLayout } from './components/AdminLayout';
@@ -24,6 +25,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
+        <Toaster
+          position="top-center"
+          richColors
+          closeButton
+          toastOptions={{ style: { fontFamily: 'inherit' } }}
+        />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/alojamientos/:id" element={<Alojamiento />} />

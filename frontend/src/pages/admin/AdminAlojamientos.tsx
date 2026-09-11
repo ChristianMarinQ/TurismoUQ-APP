@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { api, Municipio } from '../../api/client';
-import { Cargando, ErrorEstado, Vacio } from '../../components/EstadosUI';
+import { EsqueletoTabla, ErrorEstado, Vacio, Spinner } from '../../components/EstadosUI';
 
 interface FilaAlojamiento {
   ID_ALOJAMIENTO: number;
@@ -38,16 +39,22 @@ export default function AdminAlojamientos() {
     api.listarTiposAlojamiento().then(setTipos).catch(() => {});
   }, [cargar]);
 
+  const [guardando, setGuardando] = useState(false);
+
   async function crear(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setGuardando(true);
     try {
       await api.adminCrearAlojamiento(nuevo);
+      toast.success(`"${nuevo.nombre}" quedó creado.`);
       setMostrarForm(false);
       setNuevo({ nombre: '', direccion: '', capacidadMax: 4, idMunicipio: 0, idTipo: 0 });
       cargar();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
+    } finally {
+      setGuardando(false);
     }
   }
 
@@ -57,9 +64,10 @@ export default function AdminAlojamientos() {
       await api.adminActualizarAlojamiento(a.ID_ALOJAMIENTO, {
         nombre: a.NOMBRE, direccion: a.DIRECCION, capacidadMax: a.CAPACIDAD_MAX, estado: nuevoEstado,
       });
+      toast.success(`${a.NOMBRE} ahora está ${nuevoEstado.toLowerCase()}.`);
       cargar();
     } catch (err) {
-      setError((err as Error).message);
+      toast.error((err as Error).message);
     }
   }
 
@@ -75,7 +83,7 @@ export default function AdminAlojamientos() {
       {error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {mostrarForm && (
-        <form onSubmit={crear} className="card mb-6 grid grid-cols-2 gap-3 p-5">
+        <form onSubmit={crear} className="card mb-6 grid animate-desplegar grid-cols-2 gap-3 p-5">
           <input placeholder="Nombre" required className="input-field col-span-2" value={nuevo.nombre}
                  onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
           <input placeholder="Dirección" required className="input-field col-span-2" value={nuevo.direccion}
@@ -92,18 +100,21 @@ export default function AdminAlojamientos() {
           </select>
           <input type="number" min={1} placeholder="Capacidad máxima" required className="input-field col-span-2"
                  value={nuevo.capacidadMax} onChange={(e) => setNuevo({ ...nuevo, capacidadMax: Number(e.target.value) })} />
-          <button type="submit" className="btn-primary col-span-2">Crear alojamiento</button>
+          <button type="submit" className="btn-primary col-span-2" disabled={guardando}>
+            {guardando && <Spinner />}
+            {guardando ? 'Creando...' : 'Crear alojamiento'}
+          </button>
         </form>
       )}
 
-      {cargando && <Cargando mensaje="Cargando alojamientos..." />}
+      {cargando && <EsqueletoTabla filas={8} columnas={5} />}
       {!cargando && !alojamientos && <ErrorEstado mensaje="No se pudieron cargar los alojamientos." onReintentar={cargar} />}
       {!cargando && alojamientos && alojamientos.length === 0 && (
         <Vacio icono="🏨" titulo="Todavía no hay alojamientos" descripcion="Crea el primero con el botón de arriba." />
       )}
 
       {!cargando && alojamientos && alojamientos.length > 0 && (
-        <div className="card overflow-x-auto">
+        <div className="card animate-aparecer overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-stone-200 bg-stone-50 text-left text-stone-500">
               <tr>
@@ -117,7 +128,7 @@ export default function AdminAlojamientos() {
             </thead>
             <tbody>
               {alojamientos.map((a) => (
-                <tr key={a.ID_ALOJAMIENTO} className="border-b border-stone-100">
+                <tr key={a.ID_ALOJAMIENTO} className="border-b border-stone-100 transition-colors duration-150 hover:bg-stone-50">
                   <td className="px-4 py-2 font-medium">{a.NOMBRE}</td>
                   <td className="px-4 py-2">{a.MUNICIPIO}</td>
                   <td className="px-4 py-2">{a.TIPO_ALOJAMIENTO}</td>
@@ -125,7 +136,7 @@ export default function AdminAlojamientos() {
                   <td className="px-4 py-2">
                     <button
                       onClick={() => cambiarEstado(a)}
-                      className={`badge ${a.ESTADO === 'ACTIVO' ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'}`}
+                      className={`badge transition-all duration-150 ease-suave hover:brightness-95 active:scale-95 ${a.ESTADO === 'ACTIVO' ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'}`}
                     >
                       {a.ESTADO}
                     </button>

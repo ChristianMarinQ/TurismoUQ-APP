@@ -1,6 +1,9 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
+import { Spinner } from '../components/EstadosUI';
+import { VerificacionHumano, reiniciarVerificacion, verificacionActiva } from '../components/VerificacionHumano';
 
 export default function Registro() {
   const { registrarCliente } = useAuth();
@@ -10,16 +13,22 @@ export default function Registro() {
   });
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [token, setToken] = useState('');
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setCargando(true);
     try {
-      await registrarCliente(datos);
+      await registrarCliente({ ...datos, turnstileToken: token });
+      toast.success(`¡Cuenta creada! Bienvenido, ${datos.nombre}.`);
       navigate('/');
     } catch (err) {
       setError((err as Error).message);
+      // El token de Turnstile es de un solo uso: tras un fallo hay que pedir
+      // uno nuevo o el siguiente envío se rechazaría por reutilizado.
+      setToken('');
+      reiniciarVerificacion();
     } finally {
       setCargando(false);
     }
@@ -34,8 +43,8 @@ export default function Registro() {
       <h1 className="mb-1 text-2xl font-bold text-stone-900">Crea tu cuenta</h1>
       <p className="mb-6 text-sm text-stone-500">Regístrate para reservar alojamientos en el Quindío.</p>
 
-      <form onSubmit={onSubmit} className="card space-y-4 p-6">
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      <form onSubmit={onSubmit} className="card animate-subir space-y-4 p-6">
+        {error && <p className="animate-desplegar rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
         <div className="grid grid-cols-2 gap-3">
           <input placeholder="Nombre" required className="input-field" value={datos.nombre} onChange={(e) => set('nombre', e.target.value)} />
@@ -72,9 +81,15 @@ export default function Registro() {
           className="absolute -left-[9999px] h-0 w-0 opacity-0"
         />
 
-        <button type="submit" className="btn-primary w-full" disabled={cargando}>
+        <VerificacionHumano onToken={setToken} />
+
+        <button type="submit" className="btn-primary w-full" disabled={cargando || (verificacionActiva && !token)}>
+          {cargando && <Spinner />}
           {cargando ? 'Creando cuenta...' : 'Crear cuenta'}
         </button>
+        {verificacionActiva && !token && !cargando && (
+          <p className="text-center text-xs text-zinc-400">Completa la verificación para continuar.</p>
+        )}
       </form>
 
       <p className="mt-4 text-center text-sm text-stone-600">

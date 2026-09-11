@@ -1,3 +1,11 @@
 node_modules/
 dist/
 *.log
+tsconfig.tsbuildinfo
+
+# Variables de entorno: el .env real nunca se sube, solo el .env.example con
+# valores de muestra. Aunque las VITE_* son publicas por diseno, cada persona
+# usa sus propias claves y no tiene sentido versionarlas.
+.env
+.env.local
+.env.*.local
