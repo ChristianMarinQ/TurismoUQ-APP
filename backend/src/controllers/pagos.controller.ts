@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { getConnection } from '../config/db';
-import { fijarContextoCliente, fijarContextoAdmin } from '../utils/contexto';
+import { fijarContextoCliente, fijarContextoAdmin, liberarContexto } from '../utils/contexto';
 import {
   construirUrlCheckout,
   verificarFirmaWebhook,
@@ -44,6 +44,7 @@ export async function iniciarPago(req: Request, res: Response, next: NextFunctio
   } catch (err) {
     next(err);
   } finally {
+    await liberarContexto(conn);
     await conn.close();
   }
 }
@@ -116,7 +117,13 @@ export async function webhookWompi(req: Request, res: Response): Promise<void> {
           referencia: transaction.id,
         }
       );
-      await conn.execute(`UPDATE reserva SET estado = 'CONFIRMADA' WHERE id_reserva = :id`, { id: idReserva });
+      // Solo se confirma lo que sigue PENDIENTE: sin esta condicion, un evento
+      // que llegara tarde (o repetido con otro transaction.id) podia resucitar
+      // una reserva ya CANCELADA y volverla CONFIRMADA.
+      await conn.execute(
+        `UPDATE reserva SET estado = 'CONFIRMADA' WHERE id_reserva = :id AND estado = 'PENDIENTE'`,
+        { id: idReserva }
+      );
     } else if (transaction.status === 'DECLINED' || transaction.status === 'ERROR') {
       // La reserva se queda en PENDIENTE: el cliente puede reintentar el pago
       // (mismo patrón que pkg_transacciones.sp_registrar_reserva_pago en la
@@ -139,6 +146,7 @@ export async function webhookWompi(req: Request, res: Response): Promise<void> {
     console.error(err);
     res.status(500).json({ error: 'Error procesando el webhook.' });
   } finally {
+    await liberarContexto(conn);
     await conn.close();
   }
 }

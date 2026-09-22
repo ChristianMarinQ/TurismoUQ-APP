@@ -17,9 +17,19 @@ async function main(): Promise<void> {
 
   const app = express();
 
-  if (ES_PRODUCCION) {
-    // Detrás de un proxy/balanceador (nginx, la plataforma de hosting, etc.)
-    // para que express-rate-limit vea la IP real del cliente y no la del proxy.
+  // Detrás de un proxy/balanceador (nginx, la plataforma de hosting) o de un
+  // túnel como cloudflared, hay que confiar en X-Forwarded-For para que
+  // express-rate-limit vea la IP real del cliente.
+  //
+  // Sin esto, con el túnel abierto TODAS las peticiones llegan como 127.0.0.1
+  // y comparten el mismo cupo: cualquiera podía gastar los 10 intentos de
+  // login de la ventana y dejar sin acceso a todo el mundo. Turnstile también
+  // recibía esa IP falsa al puntuar el intento.
+  //
+  // En desarrollo se activa con TRUST_PROXY=1 en el .env, solo mientras el
+  // túnel esté arriba: activarlo sin proxy delante permitiría falsear la IP
+  // mandando una cabecera a mano.
+  if (ES_PRODUCCION || process.env.TRUST_PROXY === '1') {
     app.set('trust proxy', 1);
   }
 

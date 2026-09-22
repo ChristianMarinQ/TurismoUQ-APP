@@ -77,7 +77,13 @@ CREATE OR REPLACE FUNCTION f_politica_reserva_cliente(
 ) RETURN VARCHAR2
 IS
 BEGIN
-  IF SYS_CONTEXT('ctx_turismouq_app', 'es_admin') = 'S' THEN
+  -- El dueno del esquema, conectado directamente (SQL Developer, sqlplus),
+  -- ve todas las filas: las consultas de analisis y la sustentacion trabajan
+  -- sobre la tabla completa. La app nunca entra por aqui porque se conecta
+  -- como turismouq_app, y SESSION_USER no cambia al ejecutar un paquete.
+  IF SYS_CONTEXT('USERENV', 'SESSION_USER') = 'TURISMOUQ' THEN
+    RETURN NULL;
+  ELSIF SYS_CONTEXT('ctx_turismouq_app', 'es_admin') = 'S' THEN
     RETURN NULL; -- sin restriccion de fila
   ELSIF SYS_CONTEXT('ctx_turismouq_app', 'id_cliente') IS NOT NULL THEN
     RETURN 'id_cliente = SYS_CONTEXT(''ctx_turismouq_app'',''id_cliente'')';

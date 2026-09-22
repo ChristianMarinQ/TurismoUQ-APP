@@ -1,9 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import oracledb from 'oracledb';
 import { getConnection } from '../config/db';
-import { fijarContextoCliente, fijarContextoAdmin } from '../utils/contexto';
+import { fijarContextoCliente, fijarContextoAdmin, liberarContexto } from '../utils/contexto';
 
 const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Cuantas reservas sin pagar puede tener a la vez un mismo cliente. */
+const MAX_RESERVAS_PENDIENTES = 3;
 
 export async function consultarDisponibilidad(req: Request, res: Response): Promise<void> {
   const idHabitacion = Number(req.query.idHabitacion);
@@ -47,6 +50,7 @@ export async function consultarDisponibilidad(req: Request, res: Response): Prom
 
     res.json({ disponible, valorEstadia });
   } finally {
+    await liberarContexto(conn);
     await conn.close();
   }
 }
@@ -72,6 +76,21 @@ export async function crearReserva(req: Request, res: Response, next: NextFuncti
     // RLS de RESERVA -- se fija el contexto a ESTE cliente antes, para que
     // esa fila (que le pertenece) sea visible/actualizable.
     await fijarContextoCliente(conn, idCliente);
+
+    // Tope de reservas sin pagar por cliente. Una reserva PENDIENTE bloquea la
+    // habitacion en esas fechas, asi que sin este limite una sola cuenta podia
+    // ir creando reservas que nunca paga y dejar el inventario entero sin
+    // disponibilidad.
+    const pendientes = await conn.execute<{ CANTIDAD: number }>(
+      `SELECT COUNT(*) AS cantidad FROM reserva WHERE id_cliente = :idCliente AND estado = 'PENDIENTE'`,
+      { idCliente }
+    );
+    if ((pendientes.rows?.[0]?.CANTIDAD ?? 0) >= MAX_RESERVAS_PENDIENTES) {
+      res.status(409).json({
+        error: `Tienes ${MAX_RESERVAS_PENDIENTES} reservas sin pagar. Paga o cancela alguna antes de crear otra.`,
+      });
+      return;
+    }
 
     const TyItemHabitacion = await conn.getDbObjectClass('TY_ITEM_HABITACION');
     const TyTabHabitaciones = await conn.getDbObjectClass('TY_TAB_HABITACIONES');
@@ -151,6 +170,7 @@ export async function crearReserva(req: Request, res: Response, next: NextFuncti
     await conn.rollback();
     next(err);
   } finally {
+    await liberarContexto(conn);
     await conn.close();
   }
 }
@@ -212,6 +232,7 @@ export async function obtenerReserva(req: Request, res: Response): Promise<void>
 
     res.json({ ...(result.rows[0] as object), servicios: servicios.rows ?? [] });
   } finally {
+    await liberarContexto(conn);
     await conn.close();
   }
 }
@@ -236,6 +257,7 @@ export async function misReservas(req: Request, res: Response): Promise<void> {
     );
     res.json(result.rows);
   } finally {
+    await liberarContexto(conn);
     await conn.close();
   }
 }

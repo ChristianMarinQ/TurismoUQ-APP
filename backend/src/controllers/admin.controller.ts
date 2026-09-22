@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import oracledb from 'oracledb';
 import { getConnection } from '../config/db';
-import { fijarContextoAdmin } from '../utils/contexto';
+import { fijarContextoAdmin, liberarContexto } from '../utils/contexto';
 
 export async function estadisticas(_req: Request, res: Response): Promise<void> {
   const conn = await getConnection();
@@ -30,6 +30,7 @@ export async function estadisticas(_req: Request, res: Response): Promise<void> 
       totalClientes: clientes.rows?.[0]?.TOTAL ?? 0,
     });
   } finally {
+    await liberarContexto(conn);
     await conn.close();
   }
 }
@@ -63,6 +64,7 @@ export async function listarReservasAdmin(req: Request, res: Response): Promise<
     );
     res.json(result.rows);
   } finally {
+    await liberarContexto(conn);
     await conn.close();
   }
 }

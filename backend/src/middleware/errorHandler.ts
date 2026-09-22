@@ -7,6 +7,9 @@ const MENSAJES_ORA: Record<number, string> = {
   20003: 'El número de huéspedes supera la capacidad de la habitación.',
   20004: 'Debes seleccionar al menos una habitación.',
   20005: 'El monto del pago es insuficiente.',
+  20006: 'Todavía no hay tarifas publicadas para todas las noches de esas fechas.',
+  20007: 'Esa habitación no está disponible para reservar.',
+  20008: 'No se puede reservar en fechas que ya pasaron.',
   // Servicios adicionales (ver pkg_servicios_app, sql/05_servicios_reserva.sql)
   20011: 'No encontramos esa reserva a tu nombre.',
   20012: 'Solo se pueden agregar servicios a una reserva pendiente de pago.',

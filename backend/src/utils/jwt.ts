@@ -14,9 +14,18 @@ function secreto(): string {
 
 const ALGORITMO = 'HS256' as const;
 
+/**
+ * La sesión de administrador dura mucho menos que la de un cliente. El token
+ * es autocontenido: no hay forma de revocarlo antes de que venza, así que un
+ * admin desactivado (o un portátil olvidado) conservaría el panel entero
+ * durante los 7 días de una sesión normal. Ocho horas cubren una jornada.
+ */
+const VIGENCIA_ADMIN = '8h';
+
 export function firmarToken(payload: PayloadSesion): string {
+  const vigencia = payload.tipo === 'admin' ? VIGENCIA_ADMIN : (process.env.JWT_EXPIRES_IN ?? '7d');
   return jwt.sign(payload, secreto(), {
-    expiresIn: (process.env.JWT_EXPIRES_IN as any) ?? '7d',
+    expiresIn: vigencia as any,
     algorithm: ALGORITMO,
   });
 }
