@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api, Municipio } from '../../api/client';
 import { EsqueletoTabla, ErrorEstado, Vacio, Spinner } from '../../components/EstadosUI';
+import { Icono } from '../../components/Icono';
+import { ArrowRight, Hotel } from 'lucide';
 
 interface FilaAlojamiento {
   ID_ALOJAMIENTO: number;
@@ -110,7 +112,7 @@ export default function AdminAlojamientos() {
       {cargando && <EsqueletoTabla filas={8} columnas={5} />}
       {!cargando && !alojamientos && <ErrorEstado mensaje="No se pudieron cargar los alojamientos." onReintentar={cargar} />}
       {!cargando && alojamientos && alojamientos.length === 0 && (
-        <Vacio icono="🏨" titulo="Todavía no hay alojamientos" descripcion="Crea el primero con el botón de arriba." />
+        <Vacio icono={Hotel} titulo="Todavía no hay alojamientos" descripcion="Crea el primero con el botón de arriba." />
       )}
 
       {!cargando && alojamientos && alojamientos.length > 0 && (
@@ -142,8 +144,8 @@ export default function AdminAlojamientos() {
                     </button>
                   </td>
                   <td className="px-4 py-2 text-right">
-                    <Link to={`/admin/alojamientos/${a.ID_ALOJAMIENTO}/habitaciones`} className="text-brand-700 hover:underline">
-                      Habitaciones →
+                    <Link to={`/admin/alojamientos/${a.ID_ALOJAMIENTO}/habitaciones`} className="inline-flex items-center gap-1 text-brand-700 hover:underline">
+                      Habitaciones <Icono icono={ArrowRight} tamano={15} />
                     </Link>
                   </td>
                 </tr>

@@ -1,6 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as EventoTeclado } from 'react';
 import { Municipio } from '../api/client';
+import { Icono } from './Icono';
+import { Check, ChevronDown } from 'lucide';
 
 interface Props {
   municipios: Municipio[];
@@ -165,9 +167,9 @@ export function SelectorMunicipio({ municipios, valor, onCambio, sobreImagen = f
         </span>
         <span
           aria-hidden
-          className={`shrink-0 text-xs text-zinc-400 transition-transform duration-200 ease-suave ${abierto ? 'rotate-180' : ''}`}
+          className={`shrink-0 text-zinc-400 transition-transform duration-200 ease-suave ${abierto ? 'rotate-180' : ''}`}
         >
-          ▼
+          <Icono icono={ChevronDown} tamano={16} />
         </span>
       </button>
 
@@ -215,8 +217,8 @@ export function SelectorMunicipio({ municipios, valor, onCambio, sobreImagen = f
                 >
                   <span className="flex-1 truncate">{opcion.nombre}</span>
                   {elegida && (
-                    <span className="shrink-0 text-brand-600" aria-hidden>
-                      ✓
+                    <span className="shrink-0 text-brand-600">
+                      <Icono icono={Check} tamano={16} grosor={2.5} />
                     </span>
                   )}
                 </li>

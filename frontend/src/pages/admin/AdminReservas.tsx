@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { EsqueletoTabla, ErrorEstado, Vacio } from '../../components/EstadosUI';
+import { ClipboardList } from 'lucide';
 
 interface FilaReserva {
   ID_RESERVA: number;
@@ -47,7 +48,7 @@ export default function AdminReservas() {
       {!cargando && error && <ErrorEstado mensaje={error} onReintentar={cargar} />}
 
       {!cargando && !error && reservas && reservas.length === 0 && (
-        <Vacio titulo="No hay reservas con ese filtro" icono="📋" />
+        <Vacio titulo="No hay reservas con ese filtro" icono={ClipboardList} />
       )}
 
       {!cargando && !error && reservas && reservas.length > 0 && (

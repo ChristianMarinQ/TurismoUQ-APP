@@ -3,6 +3,8 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { Navbar } from '../components/Navbar';
 import { Cargando, ErrorEstado } from '../components/EstadosUI';
+import { Icono } from '../components/Icono';
+import { CircleCheck, Hourglass } from 'lucide';
 
 /**
  * Wompi redirige aquí después del checkout. El webhook (servidor a
@@ -46,13 +48,13 @@ export default function ResultadoPago() {
         {!error && estado === null && <Cargando mensaje={`Consultando el estado de tu reserva #${idReserva}...`} />}
         {estado === 'CONFIRMADA' && (
           <div className="rounded-xl bg-emerald-50 p-6">
-            <p className="text-3xl">✅</p>
+            <Icono icono={CircleCheck} tamano={40} grosor={1.75} className="mx-auto text-emerald-600" />
             <p className="mt-2 font-medium text-emerald-800">¡Pago aprobado! Tu reserva #{idReserva} quedó confirmada.</p>
           </div>
         )}
         {estado === 'PENDIENTE' && (
           <div className="rounded-xl bg-amber-50 p-6">
-            <p className="text-3xl">⏳</p>
+            <Icono icono={Hourglass} tamano={40} grosor={1.75} className="mx-auto text-amber-600" />
             <p className="mt-2 text-amber-800">Tu pago todavía se está procesando. Refresca en un momento.</p>
           </div>
         )}

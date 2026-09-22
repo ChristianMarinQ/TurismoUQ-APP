@@ -8,7 +8,9 @@ import { Cargando, ErrorEstado, Spinner } from '../components/EstadosUI';
 import { Foto } from '../components/Foto';
 import { CalendarioPrecios } from '../components/CalendarioPrecios';
 import { SelectorServicios } from '../components/SelectorServicios';
-import { fotoAlojamiento, fotoGaleria, fotoHabitacion, ICONO_TIPO } from '../lib/imagenes';
+import { Icono, IconoTipo } from '../components/Icono';
+import { ArrowLeft, BedDouble, Star } from 'lucide';
+import { fotoAlojamiento, fotoGaleria, fotoHabitacion } from '../lib/imagenes';
 
 /**
  * 'YYYY-MM-DD' -> '14 sep'. Se parte el string a mano porque
@@ -158,19 +160,19 @@ export default function Alojamiento() {
     <div className="min-h-screen bg-white">
       <Navbar />
 
-      <main className="mx-auto max-w-6xl px-5 py-8">
+      <main className="mx-auto max-w-6xl px-5 py-8 2xl:max-w-7xl">
         <Link to="/" className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-900">
-          ← Volver a la búsqueda
+          <Icono icono={ArrowLeft} tamano={16} /> Volver a la búsqueda
         </Link>
 
         {/* Encabezado */}
         <div className="animate-subir">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="badge bg-brand-50 text-brand-700">
-              {ICONO_TIPO[alojamiento.TIPO_ALOJAMIENTO] ?? '🏠'} {alojamiento.TIPO_ALOJAMIENTO}
+            <span className="badge inline-flex items-center gap-1.5 bg-brand-50 text-brand-700">
+              <IconoTipo tipo={alojamiento.TIPO_ALOJAMIENTO} /> {alojamiento.TIPO_ALOJAMIENTO}
             </span>
             <span className="flex items-center gap-1 text-sm font-medium text-zinc-900">
-              <span className="text-amber-500" aria-hidden>★</span>
+              <Icono icono={Star} tamano={15} className="fill-amber-400 text-amber-500" />
               {Number(alojamiento.CALIFICACION_PROMEDIO).toFixed(1)}
             </span>
           </div>
@@ -281,7 +283,9 @@ export default function Alojamiento() {
             <div className="card p-6">
               {!habitacionSel ? (
                 <div className="py-6 text-center">
-                  <p className="text-3xl" aria-hidden>👈</p>
+                  <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-brand-50 text-brand-700">
+                    <Icono icono={BedDouble} tamano={26} grosor={1.75} />
+                  </span>
                   <p className="mt-3 font-semibold text-zinc-900">Elige una habitación</p>
                   <p className="mt-1 text-sm text-zinc-500">Selecciona una para ver el precio de tu estadía.</p>
                 </div>

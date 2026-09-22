@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, ReservaResumen, ReservaDetalle } from '../api/client';
 import { Navbar } from '../components/Navbar';
 import { EsqueletoLista, ErrorEstado, Vacio } from '../components/EstadosUI';
+import { Icono } from '../components/Icono';
+import { ChevronDown, Luggage } from 'lucide';
 
 const COLOR_ESTADO: Record<string, string> = {
   PENDIENTE: 'bg-amber-100 text-amber-800',
@@ -78,7 +80,7 @@ export default function MisReservas() {
           {cargando && <EsqueletoLista />}
           {!cargando && error && <ErrorEstado mensaje={error} onReintentar={cargar} />}
           {!cargando && !error && reservas && reservas.length === 0 && (
-            <Vacio icono="🧳" titulo="Todavía no tienes reservas" descripcion="Cuando reserves un alojamiento, aparecerá aquí." />
+            <Vacio icono={Luggage} titulo="Todavía no tienes reservas" descripcion="Cuando reserves un alojamiento, aparecerá aquí." />
           )}
 
           {!cargando && !error && reservas && reservas.length > 0 && (
@@ -123,7 +125,7 @@ export default function MisReservas() {
                           className={`text-zinc-400 transition-transform duration-200 ease-suave ${estaAbierta ? 'rotate-180' : ''}`}
                           aria-hidden
                         >
-                          ▾
+                          <Icono icono={ChevronDown} tamano={18} />
                         </span>
                       </div>
                     </button>

@@ -1,3 +1,7 @@
+import type { IconNode } from 'lucide';
+import { Inbox, TriangleAlert } from 'lucide';
+import { Icono } from './Icono';
+
 /** Spinner chiquito, para meter dentro de un botón mientras procesa. */
 export function Spinner({ className = '' }: { className?: string }) {
   return (
@@ -80,7 +84,9 @@ export function EsqueletoLista({ filas = 3 }: { filas?: number }) {
 export function ErrorEstado({ mensaje, onReintentar }: { mensaje: string; onReintentar?: () => void }) {
   return (
     <div className="flex animate-subir flex-col items-center gap-3 rounded-xl bg-red-50 px-6 py-10 text-center">
-      <span className="text-3xl" aria-hidden>⚠️</span>
+      <span className="grid h-12 w-12 place-items-center rounded-full bg-red-100 text-red-600">
+        <Icono icono={TriangleAlert} tamano={24} />
+      </span>
       <p className="font-medium text-red-700">{mensaje}</p>
       {onReintentar && (
         <button onClick={onReintentar} className="btn-secondary">
@@ -92,10 +98,12 @@ export function ErrorEstado({ mensaje, onReintentar }: { mensaje: string; onRein
 }
 
 /** Para cuando la carga funcionó pero no hay nada que mostrar. */
-export function Vacio({ icono = '📭', titulo, descripcion }: { icono?: string; titulo: string; descripcion?: string }) {
+export function Vacio({ icono = Inbox, titulo, descripcion }: { icono?: IconNode; titulo: string; descripcion?: string }) {
   return (
     <div className="flex animate-subir flex-col items-center gap-2 rounded-xl border border-dashed border-stone-300 px-6 py-16 text-center text-stone-500">
-      <span className="text-4xl" aria-hidden>{icono}</span>
+      <span className="mb-1 grid h-14 w-14 place-items-center rounded-full bg-brand-50 text-brand-700">
+        <Icono icono={icono} tamano={26} grosor={1.75} />
+      </span>
       <p className="font-medium text-stone-700">{titulo}</p>
       {descripcion && <p className="text-sm">{descripcion}</p>}
     </div>

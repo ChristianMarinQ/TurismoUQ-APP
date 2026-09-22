@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, CalendarioPrecios as Calendario, DiaCalendario } from '../api/client';
 import { ErrorEstado } from './EstadosUI';
+import { Icono } from './Icono';
+import { ChevronLeft, ChevronRight } from 'lucide';
 
 interface Props {
   idAlojamiento: number;
@@ -274,7 +276,7 @@ export function CalendarioPrecios({ idAlojamiento, idHabitacion, checkin, checko
           aria-label="Mes anterior"
           className="grid h-8 w-8 place-items-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-transparent"
         >
-          ‹
+          <Icono icono={ChevronLeft} tamano={18} />
         </button>
         <p className="text-sm font-semibold text-zinc-900" aria-live="polite">{nombreMes(mesVisible)}</p>
         <button
@@ -283,7 +285,7 @@ export function CalendarioPrecios({ idAlojamiento, idHabitacion, checkin, checko
           aria-label="Mes siguiente"
           className="grid h-8 w-8 place-items-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100"
         >
-          ›
+          <Icono icono={ChevronRight} tamano={18} />
         </button>
       </div>
 

@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api, Habitacion } from '../../api/client';
 import { EsqueletoTabla, ErrorEstado, Vacio, Spinner } from '../../components/EstadosUI';
+import { Icono } from '../../components/Icono';
+import { ArrowLeft, BedDouble } from 'lucide';
 
 const TIPOS = ['INDIVIDUAL', 'DOBLE', 'TRIPLE', 'SUITE', 'FAMILIAR'];
 const ESTADOS = ['DISPONIBLE', 'MANTENIMIENTO', 'INACTIVA'];
@@ -60,7 +62,7 @@ export default function AdminHabitaciones() {
 
   return (
     <div>
-      <Link to="/admin/alojamientos" className="mb-4 inline-block text-sm text-brand-700 hover:underline">← Volver a alojamientos</Link>
+      <Link to="/admin/alojamientos" className="mb-4 inline-flex items-center gap-1 text-sm text-brand-700 hover:underline"><Icono icono={ArrowLeft} tamano={15} /> Volver a alojamientos</Link>
       <h1 className="mb-6 text-2xl font-bold text-stone-900">Habitaciones</h1>
 
       {error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
@@ -89,7 +91,7 @@ export default function AdminHabitaciones() {
       {cargando && <EsqueletoTabla filas={6} columnas={4} />}
       {!cargando && !habitaciones && <ErrorEstado mensaje="No se pudieron cargar las habitaciones." onReintentar={cargar} />}
       {!cargando && habitaciones && habitaciones.length === 0 && (
-        <Vacio icono="🛏️" titulo="Este alojamiento no tiene habitaciones todavía" descripcion="Agrega la primera con el formulario de arriba." />
+        <Vacio icono={BedDouble} titulo="Este alojamiento no tiene habitaciones todavía" descripcion="Agrega la primera con el formulario de arriba." />
       )}
 
       {!cargando && habitaciones && habitaciones.length > 0 && (

@@ -1,3 +1,6 @@
+import type { IconNode } from 'lucide';
+import { BedDouble, Coffee, Hotel, Tent } from 'lucide';
+
 /**
  * Fotos de los alojamientos.
  *
@@ -143,9 +146,10 @@ export function fotoHabitacion(idHabitacion: number, tipo?: string): string {
 /** Foto de portada del inicio: el Valle de Cocora, el ícono del Quindío. */
 export const FOTO_PORTADA = ENTORNO[0];
 
-export const ICONO_TIPO: Record<string, string> = {
-  'Finca Cafetera': '☕',
-  Hotel: '🏨',
-  Glamping: '⛺',
-  Hostal: '🛏️',
+/** Trazo de Lucide por tipo de alojamiento (se dibuja con <IconoTipo />). */
+export const ICONO_TIPO: Record<string, IconNode> = {
+  'Finca Cafetera': Coffee,
+  Hotel,
+  Glamping: Tent,
+  Hostal: BedDouble,
 };

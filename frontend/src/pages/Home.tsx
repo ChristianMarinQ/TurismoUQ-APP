@@ -5,7 +5,9 @@ import { Navbar } from '../components/Navbar';
 import { EsqueletoTarjetas, ErrorEstado, Vacio } from '../components/EstadosUI';
 import { Foto } from '../components/Foto';
 import { SelectorMunicipio } from '../components/SelectorMunicipio';
-import { fotoAlojamiento, FOTO_PORTADA, ICONO_TIPO } from '../lib/imagenes';
+import { Icono, IconoTipo } from '../components/Icono';
+import { MapPin, Search, Star, Tent } from 'lucide';
+import { fotoAlojamiento, FOTO_PORTADA } from '../lib/imagenes';
 
 export default function Home() {
   const [municipios, setMunicipios] = useState<Municipio[]>([]);
@@ -48,11 +50,13 @@ export default function Home() {
         />
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-zinc-950/85 via-zinc-950/70 to-zinc-950/85" />
 
-        <div className="mx-auto max-w-6xl px-5 py-24 sm:py-32">
+        {/* El navbar va fijo encima de la portada: el padding superior deja
+            libre su altura (h-16 / sm:h-20) más el aire del diseño. */}
+        <div className="mx-auto max-w-6xl px-5 pb-24 pt-32 sm:pb-32 sm:pt-40 2xl:max-w-7xl">
           <p className="animate-aparecer text-sm font-semibold uppercase tracking-widest text-brand-300">
             Eje cafetero · Colombia
           </p>
-          <h1 className="mt-3 max-w-3xl animate-subir text-4xl font-extrabold leading-[1.05] text-white sm:text-6xl">
+          <h1 className="mt-3 max-w-3xl animate-subir text-4xl font-extrabold leading-[1.05] text-white sm:text-6xl xl:text-7xl">
             Dormir entre cafetales<br className="hidden sm:block" /> nunca fue tan fácil.
           </h1>
           <p className="mt-5 max-w-xl animate-subir text-lg text-zinc-300" style={{ animationDelay: '60ms' }}>
@@ -61,11 +65,13 @@ export default function Home() {
           </p>
 
           <div
-            className="mt-8 flex max-w-lg animate-subir items-center gap-3 rounded-2xl bg-white p-2 shadow-elevada"
+            className="mt-8 flex w-full max-w-lg animate-subir xl:max-w-xl items-center gap-2 sm:gap-3 rounded-2xl bg-white p-2 shadow-elevada"
             style={{ animationDelay: '120ms' }}
           >
-            <span className="pl-3 text-lg" aria-hidden>📍</span>
-            <div className="flex-1">
+            <span className="pl-2 text-brand-600 sm:pl-3"><Icono icono={MapPin} tamano={20} /></span>
+            {/* min-w-0: sin él, el texto truncado del selector impone su ancho
+                y en celular empuja el botón fuera de la pantalla. */}
+            <div className="min-w-0 flex-1">
               <SelectorMunicipio
                 municipios={municipios}
                 valor={municipioFiltro}
@@ -73,13 +79,16 @@ export default function Home() {
                 sobreImagen
               />
             </div>
-            <span className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white">Buscar</span>
+            <span className="flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 p-2.5 text-sm font-semibold text-white sm:px-4">
+              <Icono icono={Search} tamano={18} />
+              <span className="sr-only sm:not-sr-only">Buscar</span>
+            </span>
           </div>
         </div>
       </section>
 
       {/* Resultados */}
-      <main className="mx-auto max-w-6xl px-5 py-14">
+      <main className="mx-auto max-w-6xl px-5 py-14 2xl:max-w-7xl">
         {cargando && (
           <>
             <div className="skeleton mb-6 h-7 w-64" />
@@ -92,7 +101,7 @@ export default function Home() {
         )}
 
         {!cargando && !error && alojamientos && alojamientos.length === 0 && (
-          <Vacio icono="🏕️" titulo="No hay alojamientos para ese filtro" descripcion="Prueba con otro municipio." />
+          <Vacio icono={Tent} titulo="No hay alojamientos para ese filtro" descripcion="Prueba con otro municipio." />
         )}
 
         {!cargando && !error && alojamientos && alojamientos.length > 0 && (
@@ -121,8 +130,8 @@ export default function Home() {
                       alt={a.NOMBRE}
                       className="h-full w-full object-cover transition-transform duration-500 ease-suave group-hover:scale-105"
                     />
-                    <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-zinc-800 shadow-suave backdrop-blur">
-                      {ICONO_TIPO[a.TIPO_ALOJAMIENTO] ?? '🏠'} {a.TIPO_ALOJAMIENTO}
+                    <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-zinc-800 shadow-suave backdrop-blur">
+                      <IconoTipo tipo={a.TIPO_ALOJAMIENTO} className="text-brand-700" /> {a.TIPO_ALOJAMIENTO}
                     </span>
                   </div>
 
@@ -132,7 +141,7 @@ export default function Home() {
                         {a.NOMBRE}
                       </h3>
                       <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-zinc-900">
-                        <span className="text-amber-500" aria-hidden>★</span>
+                        <Icono icono={Star} tamano={14} className="fill-amber-400 text-amber-500" />
                         {Number(a.CALIFICACION_PROMEDIO).toFixed(1)}
                       </span>
                     </div>
@@ -149,7 +158,7 @@ export default function Home() {
       </main>
 
       <footer className="mt-10 border-t border-zinc-200/80 py-10">
-        <div className="mx-auto max-w-6xl px-5 text-sm text-zinc-500">
+        <div className="mx-auto max-w-6xl px-5 text-sm text-zinc-500 2xl:max-w-7xl">
           TurismoUQ · Proyecto de Bases de Datos II · Universidad del Quindío
         </div>
       </footer>
